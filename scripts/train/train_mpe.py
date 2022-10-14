@@ -10,6 +10,7 @@ import torch
 from onpolicy.config import get_config
 from onpolicy.envs.mpe.MPE_env import MPEEnv
 from onpolicy.envs.env_wrappers import SubprocVecEnv, DummyVecEnv
+from onpolicy.utils.utils import debug_print
 
 """Train script for MPEs."""
 
@@ -64,6 +65,10 @@ def parse_args(args, parser):
 def main(args):
     parser = get_config()
     all_args = parse_args(args, parser)
+    debug_print(">>> all_args.share_policy:", all_args.share_policy, inline=True)
+    debug_print(">>> all_args.algorithm_name:", all_args.algorithm_name, inline=True)
+    debug_print(">>> all_args.use_recurrent_policy", all_args.use_recurrent_policy, inline=True)
+    debug_print(">>> all_args.use_naive_recurrent_policy", all_args.use_naive_recurrent_policy, inline=True)
 
     if all_args.algorithm_name == "rmappo":
         assert (all_args.use_recurrent_policy or all_args.use_naive_recurrent_policy), ("check recurrent policy!")

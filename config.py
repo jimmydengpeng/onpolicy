@@ -121,7 +121,7 @@ def get_config():
         --clone_coef <float>
             clone term coefficient (default: 0.01)
     
-    Run parameters：
+    Run parameters:
         --use_linear_lr_decay
             by default, do not apply linear decay to learning rate. If set, use a linear schedule on the learning rate
     
@@ -157,59 +157,40 @@ def get_config():
         description='onpolicy', formatter_class=argparse.RawDescriptionHelpFormatter)
 
     # prepare parameters
-    parser.add_argument("--algorithm_name", type=str,
-                        default='mappo', choices=["rmappo", "mappo"])
+    parser.add_argument("--algorithm_name",     type=str, default='mappo', choices=["rmappo", "mappo"])
 
-    parser.add_argument("--experiment_name", type=str, default="check", help="an identifier to distinguish different experiment.")
-    parser.add_argument("--seed", type=int, default=1, help="Random seed for numpy/torch")
-    parser.add_argument("--cuda", action='store_false', default=True, help="by default True, will use GPU to train; or else will use CPU;")
-    parser.add_argument("--cuda_deterministic",
-                        action='store_false', default=True, help="by default, make sure random seed effective. if set, bypass such function.")
-    parser.add_argument("--n_training_threads", type=int,
-                        default=1, help="Number of torch threads for training")
-    parser.add_argument("--n_rollout_threads", type=int, default=32,
-                        help="Number of parallel envs for training rollouts")
-    parser.add_argument("--n_eval_rollout_threads", type=int, default=1,
-                        help="Number of parallel envs for evaluating rollouts")
-    parser.add_argument("--n_render_rollout_threads", type=int, default=1,
-                        help="Number of parallel envs for rendering rollouts")
-    parser.add_argument("--num_env_steps", type=int, default=10e6,
-                        help='Number of environment steps to train (default: 10e6)')
-    parser.add_argument("--user_name", type=str, default='marl',help="[for wandb usage], to specify user's name for simply collecting training data.")
-    parser.add_argument("--use_wandb", action='store_false', default=True, help="[for wandb usage], by default True, will log date to wandb server. or else will use tensorboard to log data.")
+    parser.add_argument("--experiment_name",    type=str, default="check", help="an identifier to distinguish different experiment.")
+    parser.add_argument("--seed",               type=int, default=1, help="Random seed for numpy/torch")
+    parser.add_argument("--cuda",               action='store_false', default=True, help="by default True, will use GPU to train; or else will use CPU;")
+    parser.add_argument("--cuda_deterministic", action='store_false', default=True, help="by default True, make sure random seed effective. if set, bypass such function.")
+    parser.add_argument("--n_training_threads",       type=int, default=1, help="Number of torch threads for training")
+    parser.add_argument("--n_rollout_threads",        type=int, default=32, help="Number of parallel envs for training rollouts")
+    parser.add_argument("--n_eval_rollout_threads",   type=int, default=1, help="Number of parallel envs for evaluating rollouts")
+    parser.add_argument("--n_render_rollout_threads", type=int, default=1, help="Number of parallel envs for rendering rollouts")
+    parser.add_argument("--num_env_steps",            type=int, default=10e6, help='Number of environment steps to train (default: 10e6)')
+    parser.add_argument("--user_name",                type=str, default='marl',help="[for wandb usage], to specify user's name for simply collecting training data.")
+    parser.add_argument("--use_wandb",                action='store_false', default=True, help="[for wandb usage], by default True, will log date to wandb server. or else will use tensorboard to log data.")
 
     # env parameters
     parser.add_argument("--env_name", type=str, default='StarCraft2', help="specify the name of environment")
-    parser.add_argument("--use_obs_instead_of_state", action='store_true',
-                        default=False, help="Whether to use global state or concatenated obs")
+    parser.add_argument("--use_obs_instead_of_state", action='store_true', default=False, help="Whether to use global state or concatenated obs")
 
     # replay buffer parameters
-    parser.add_argument("--episode_length", type=int,
-                        default=200, help="Max length for any episode")
+    parser.add_argument("--episode_length", type=int, default=200, help="Max length for any episode")
 
     # network parameters
-    parser.add_argument("--share_policy", action='store_false',
-                        default=True, help='Whether agent share the same policy')
-    parser.add_argument("--use_centralized_V", action='store_false',
-                        default=True, help="Whether to use centralized V function")
-    parser.add_argument("--stacked_frames", type=int, default=1,
-                        help="Dimension of hidden layers for actor/critic networks")
-    parser.add_argument("--use_stacked_frames", action='store_true',
-                        default=False, help="Whether to use stacked_frames")
-    parser.add_argument("--hidden_size", type=int, default=64,
-                        help="Dimension of hidden layers for actor/critic networks") 
-    parser.add_argument("--layer_N", type=int, default=1,
-                        help="Number of layers for actor/critic networks")
-    parser.add_argument("--use_ReLU", action='store_false',
-                        default=True, help="Whether to use ReLU")
-    parser.add_argument("--use_popart", action='store_true', default=False, help="by default False, use PopArt to normalize rewards.")
-    parser.add_argument("--use_valuenorm", action='store_false', default=True, help="by default True, use running mean and std to normalize rewards.")
-    parser.add_argument("--use_feature_normalization", action='store_false',
-                        default=True, help="Whether to apply layernorm to the inputs")
-    parser.add_argument("--use_orthogonal", action='store_false', default=True,
-                        help="Whether to use Orthogonal initialization for weights and 0 initialization for biases")
-    parser.add_argument("--gain", type=float, default=0.01,
-                        help="The gain # of last action layer")
+    parser.add_argument("--share_policy",                action='store_false', default=True, help='Whether agent share the same policy')
+    parser.add_argument("--use_centralized_V",           action='store_false', default=True, help="Whether to use centralized V function")
+    parser.add_argument("--stacked_frames",              type=int, default=1, help="Dimension of hidden layers for actor/critic networks")
+    parser.add_argument("--use_stacked_frames",          action='store_true', default=False, help="Whether to use stacked_frames")
+    parser.add_argument("--hidden_size",                 type=int, default=64, help="Dimension of hidden layers for actor/critic networks") 
+    parser.add_argument("--layer_N",                     type=int, default=1, help="Number of layers for actor/critic networks")
+    parser.add_argument("--use_ReLU",                    action='store_false', default=True, help="Whether to use ReLU")
+    parser.add_argument("--use_popart",                  action='store_true', default=False, help="by default False, use PopArt to normalize rewards.")
+    parser.add_argument("--use_valuenorm",               action='store_false', default=True, help="by default True, use running mean and std to normalize rewards.")
+    parser.add_argument("--use_feature_normalization",   action='store_false', default=True, help="Whether to apply layernorm to the inputs")
+    parser.add_argument("--use_orthogonal",              action='store_false', default=True, help="Whether to use Orthogonal initialization for weights and 0 initialization for biases")
+    parser.add_argument("--gain",                        type=float, default=0.01, help="The gain # of last action layer")
 
     # recurrent parameters
     parser.add_argument("--use_naive_recurrent_policy", action='store_true',

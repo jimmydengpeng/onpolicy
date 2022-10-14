@@ -106,7 +106,7 @@ class ShareVecEnv(ABC):
         self.step_async(actions)
         return self.step_wait()
 
-    def render(self, mode='human'):
+    def render(self, mode='human'): #FIXME
         imgs = self.get_images()
         bigimg = tile_images(imgs)
         if mode == 'human':
@@ -138,7 +138,7 @@ class ShareVecEnv(ABC):
 
 
 def worker(remote, parent_remote, env_fn_wrapper):
-    parent_remote.close()
+    parent_remote.close() # 关闭子进程内的父进程pipe端引用，防止recv()卡住 (针对fork模式)
     env = env_fn_wrapper.x()
     while True:
         cmd, data = remote.recv()
@@ -157,7 +157,7 @@ def worker(remote, parent_remote, env_fn_wrapper):
             remote.send((ob))
         elif cmd == 'render':
             if data == "rgb_array":
-                fr = env.render(mode=data)
+                fr = env.render(mode=data) #FIXME
                 remote.send(fr)
             elif data == "human":
                 env.render(mode=data)
@@ -240,6 +240,7 @@ class SubprocVecEnv(ShareVecEnv):
         self.waiting = False
         self.closed = False
         nenvs = len(env_fns)
+        print(">>> nenvs:", nenvs)
         self.remotes, self.work_remotes = zip(*[Pipe() for _ in range(nenvs)])
         self.ps = [Process(target=worker, args=(work_remote, remote, CloudpickleWrapper(env_fn)))
                    for (work_remote, remote, env_fn) in zip(self.work_remotes, self.remotes, env_fns)]
@@ -247,7 +248,7 @@ class SubprocVecEnv(ShareVecEnv):
             p.daemon = True  # if the main process crashes, we should not cause things to hang
             p.start()
         for remote in self.work_remotes:
-            remote.close()
+            remote.close() # 关闭父进程内的子进程的pipe端，防止recv()卡住 (针对fork模式)
 
         self.remotes[0].send(('get_spaces', None))
         observation_space, share_observation_space, action_space = self.remotes[0].recv()
