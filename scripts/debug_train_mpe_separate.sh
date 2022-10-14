@@ -5,11 +5,11 @@ num_landmarks=3
 num_agents=3
 algo="rmappo"
 # algo="mappo" # set --use_recurrent_policy (will be False, default by True)
-num_torch_threads=8
-num_rollout_env=32
-# exp="simple_spread_share_${num_torch_threads}t${num_rollout_env}p"
-exp="simple_spread_separate_${num_torch_threads}t${num_rollout_env}p" # also set --share_policy (default by True) 
-num_env_steps=20000000
+num_torch_threads=2
+num_rollout_env=2
+# exp="simple_spread_share_${num_torch_threads}t${num_rollout_env}p_debug"
+exp="_DEBUG_simple_spread_separate_${num_torch_threads}t${num_rollout_env}p" # also set --share_policy (default by True) 
+num_env_steps=1000000
 # num_env_steps=10000000
 seed_max=1
 

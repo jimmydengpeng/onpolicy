@@ -1,4 +1,5 @@
     
+from multiprocessing.connection import wait
 import time
 import wandb
 import os
@@ -9,6 +10,8 @@ import torch
 from onpolicy.utils.util import update_linear_schedule
 from onpolicy.runner.separated.base_runner import Runner
 import imageio
+
+from onpolicy.utils.utils import debug_print
 
 def _t2n(x):
     return x.detach().cpu().numpy()
@@ -34,6 +37,7 @@ class MPERunner(Runner):
                     
                 # Obser reward and next obs
                 obs, rewards, dones, infos = self.envs.step(actions_env)
+                # MPE: info: list
 
                 data = obs, rewards, dones, infos, values, actions, action_log_probs, rnn_states, rnn_states_critic 
                 
@@ -67,9 +71,9 @@ class MPERunner(Runner):
                 if self.env_name == "MPE":
                     for agent_id in range(self.num_agents):
                         idv_rews = []
-                        for info in infos:
-                            if 'individual_reward' in infos[agent_id].keys():
-                                idv_rews.append(infos[agent_id]['individual_reward'])
+                        for info in infos: # MPE: tuple :  ( [dict *n], [dict * n] )
+                            if 'individual_reward' in info[agent_id].keys():
+                                idv_rews.append(info[agent_id]['individual_reward'])
                         train_infos[agent_id].update({'individual_rewards': np.mean(idv_rews)})
                         train_infos[agent_id].update({"average_episode_rewards": np.mean(self.buffer[agent_id].rewards) * self.episode_length})
                 self.log_train(train_infos, total_num_steps)
