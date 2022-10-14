@@ -262,9 +262,21 @@ class SubprocVecEnv(ShareVecEnv):
         self.waiting = True
 
     def step_wait(self):
-        results = [remote.recv() for remote in self.remotes]
+        results = [remote.recv() for remote in self.remotes] 
+        '''MPE:
+            [
+                (
+                    [ndarray * n_agents], 
+                    [[r] * n_agents], 
+                    [done * n], 
+                    [dict * n]
+                )
+                * n_rollout_env
+            ]
+        '''
         self.waiting = False
         obs, rews, dones, infos = zip(*results)
+        # MPE: tuple :  ( [dict *n], [dict * n] )
         return np.stack(obs), np.stack(rews), np.stack(dones), infos
 
     def reset(self):

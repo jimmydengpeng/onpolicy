@@ -10,7 +10,7 @@ import torch
 from onpolicy.config import get_config
 from onpolicy.envs.mpe.MPE_env import MPEEnv
 from onpolicy.envs.env_wrappers import SubprocVecEnv, DummyVecEnv
-from onpolicy.utils.utils import debug_print
+from onpolicy.utils.utils import LogLevel, debug_msg, debug_print
 
 """Train script for MPEs."""
 
@@ -65,9 +65,9 @@ def parse_args(args, parser):
 def main(args):
     parser = get_config()
     all_args = parse_args(args, parser)
-    debug_print(">>> all_args.share_policy:", all_args.share_policy, inline=True)
-    debug_print(">>> all_args.algorithm_name:", all_args.algorithm_name, inline=True)
-    debug_print(">>> all_args.use_recurrent_policy:", all_args.use_recurrent_policy, inline=True)
+    debug_print(">>> all_args.share_policy:", all_args.share_policy, level=LogLevel.INFO, inline=True)
+    debug_print(">>> all_args.algorithm_name:", all_args.algorithm_name, level=LogLevel.INFO, inline=True)
+    debug_print(">>> all_args.use_recurrent_policy:", all_args.use_recurrent_policy, level=LogLevel.INFO, inline=True)
 
     if all_args.algorithm_name == "rmappo":
         assert (all_args.use_recurrent_policy or all_args.use_naive_recurrent_policy), ("check recurrent policy!")
@@ -81,14 +81,14 @@ def main(args):
 
     # cuda
     if all_args.cuda and torch.cuda.is_available():
-        print("choose to use gpu...")
+        debug_msg("choose to use gpu...", level=LogLevel.WARNING)
         device = torch.device("cuda:0")
         torch.set_num_threads(all_args.n_training_threads)
         if all_args.cuda_deterministic:
             torch.backends.cudnn.benchmark = False
             torch.backends.cudnn.deterministic = True
     else:
-        print("choose to use cpu...")
+        debug_msg("choose to use cpu...", level=LogLevel.SUCCESS)
         device = torch.device("cpu")
         torch.set_num_threads(all_args.n_training_threads)
 
@@ -100,7 +100,7 @@ def main(args):
 
     # wandb
     if all_args.use_wandb:
-        run = wandb.init(config=all_args,
+        run = wandb.init(config=all_args, #type: ignore
                          project=all_args.env_name,
                          entity=all_args.user_name,
                          notes=socket.gethostname(),

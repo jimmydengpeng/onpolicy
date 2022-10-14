@@ -1,16 +1,15 @@
 #!/bin/sh
-env="MPE"
-scenario="simple_spread"  # simple_spread  # simple_reference
-num_landmarks=3
+env="MetaDrive"
+scenario="Roundabout"
+# num_landmarks=3
 num_agents=3
-algo="rmappo"
-# algo="mappo" # set --use_recurrent_policy (will be False, default by True)
-num_torch_threads=8
-num_rollout_env=32
-# exp="simple_spread_share_${num_torch_threads}t${num_rollout_env}p"
-exp="simple_spread_separate_${num_torch_threads}t${num_rollout_env}p" # also set --share_policy (default by True) 
-num_env_steps=20000000
-# num_env_steps=10000000
+# algo="rmappo"
+algo="mappo" # set --use_recurrent_policy (will be False, default by True)
+num_torch_threads=2
+num_rollout_env=2
+exp="roundabout_separate_${num_torch_threads}t${num_rollout_env}p" # --share_policy (default by True) 
+# num_env_steps=20000000
+num_env_steps=10000
 seed_max=1
 
 echo "env is ${env}, scenario is ${scenario}, algo is ${algo}, exp is ${exp}, max seed is ${seed_max}"
@@ -23,7 +22,7 @@ do
     --experiment_name ${exp} \
     --scenario_name ${scenario} \
     --num_agents ${num_agents} \
-    --num_landmarks ${num_landmarks} \
+    # --num_landmarks ${num_landmarks} \
     --seed ${seed} \
     --n_training_threads ${num_torch_threads} \
     --n_rollout_threads ${num_rollout_env} \
@@ -36,6 +35,6 @@ do
     --lr 7e-4 \
     --critic_lr 7e-4 \
     --user_name "jimmydeng" \
+    --use_recurrent_policy \
     --share_policy
-    # --use_recurrent_policy
 done

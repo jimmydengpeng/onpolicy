@@ -79,6 +79,7 @@ class Runner(object):
             self.restore()
 
         # algorithm
+        '''only one shared policy'''
         self.trainer = TrainAlgo(self.all_args, self.policy, device = self.device)
         
         # buffer

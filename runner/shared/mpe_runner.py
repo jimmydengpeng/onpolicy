@@ -4,6 +4,7 @@ import torch
 from onpolicy.runner.shared.base_runner import Runner
 import wandb
 import imageio
+from onpolicy.utils.utils import debug_print
 
 def _t2n(x):
     return x.detach().cpu().numpy()
@@ -116,6 +117,9 @@ class MPERunner(Runner):
                 else:
                     actions_env = np.concatenate((actions_env, uc_actions_env), axis=2)
         elif self.envs.action_space[0].__class__.__name__ == 'Discrete':
+            # self.envs.action_space == [Discrete(5), Discrete(5), Discrete(5)]
+            # np.eye(self.envs.action_space[0].n).shape == (5, 5)
+            # actions.shape == (n_rollout_threads, num_agents, 1)
             actions_env = np.squeeze(np.eye(self.envs.action_space[0].n)[actions], 2)
         else:
             raise NotImplementedError
