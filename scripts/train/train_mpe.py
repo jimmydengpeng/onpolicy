@@ -67,8 +67,7 @@ def main(args):
     all_args = parse_args(args, parser)
     debug_print(">>> all_args.share_policy:", all_args.share_policy, inline=True)
     debug_print(">>> all_args.algorithm_name:", all_args.algorithm_name, inline=True)
-    debug_print(">>> all_args.use_recurrent_policy", all_args.use_recurrent_policy, inline=True)
-    debug_print(">>> all_args.use_naive_recurrent_policy", all_args.use_naive_recurrent_policy, inline=True)
+    debug_print(">>> all_args.use_recurrent_policy:", all_args.use_recurrent_policy, inline=True)
 
     if all_args.algorithm_name == "rmappo":
         assert (all_args.use_recurrent_policy or all_args.use_naive_recurrent_policy), ("check recurrent policy!")
@@ -94,8 +93,8 @@ def main(args):
         torch.set_num_threads(all_args.n_training_threads)
 
     # run dir
-    run_dir = Path(os.path.split(os.path.dirname(os.path.abspath(__file__)))[
-                   0] + "/results") / all_args.env_name / all_args.scenario_name / all_args.algorithm_name / all_args.experiment_name
+    run_dir = Path(os.path.split(os.path.dirname(os.path.abspath(__file__)))[0] + "/results") \
+                / all_args.env_name / all_args.scenario_name / all_args.algorithm_name / all_args.experiment_name
     if not run_dir.exists():
         os.makedirs(str(run_dir))
 
@@ -105,9 +104,9 @@ def main(args):
                          project=all_args.env_name,
                          entity=all_args.user_name,
                          notes=socket.gethostname(),
-                         name=str(all_args.algorithm_name) + "_" +
-                         str(all_args.experiment_name) +
-                         "_seed" + str(all_args.seed),
+                         name=str(all_args.algorithm_name) + "_" + \
+                              str(all_args.experiment_name) + \
+                              "_seed" + str(all_args.seed),
                          group=all_args.scenario_name,
                          dir=str(run_dir),
                          job_type="training",

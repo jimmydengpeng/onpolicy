@@ -6,6 +6,7 @@ import torch
 from multiprocessing import Process, Pipe
 from abc import ABC, abstractmethod
 from onpolicy.utils.util import tile_images
+from onpolicy.utils.utils import debug_print
 
 class CloudpickleWrapper(object):
     """
@@ -240,7 +241,7 @@ class SubprocVecEnv(ShareVecEnv):
         self.waiting = False
         self.closed = False
         nenvs = len(env_fns)
-        print(">>> nenvs:", nenvs)
+        debug_print(">>> number of envs:", nenvs, inline=True)
         self.remotes, self.work_remotes = zip(*[Pipe() for _ in range(nenvs)])
         self.ps = [Process(target=worker, args=(work_remote, remote, CloudpickleWrapper(env_fn)))
                    for (work_remote, remote, env_fn) in zip(self.work_remotes, self.remotes, env_fns)]

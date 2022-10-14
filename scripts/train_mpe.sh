@@ -3,11 +3,13 @@ env="MPE"
 scenario="simple_spread"  # simple_spread  # simple_reference
 num_landmarks=3
 num_agents=3
-algo="rmappo"
-# algo="mappo"
+# algo="rmappo"
+algo="mappo" # set --use_recurrent_policy (will be False, default by True)
 num_torch_threads=8
-num_rollout_env=2
-exp="simple_spread_share_8t${num_rollout_env}p"
+num_rollout_env=32
+exp="simple_spread_share_8t${num_rollout_env}p" # --share_policy (default by True) 
+# num_env_steps=20000000
+num_env_steps=10000000
 seed_max=1
 
 echo "env is ${env}, scenario is ${scenario}, algo is ${algo}, exp is ${exp}, max seed is ${seed_max}"
@@ -26,14 +28,14 @@ do
     --n_rollout_threads ${num_rollout_env} \
     --num_mini_batch 1 \
     --episode_length 25 \
-    --num_env_steps 20000000 \
+    --num_env_steps ${num_env_steps} \
     --ppo_epoch 10 \
     --use_ReLU \
     --gain 0.01 \
     --lr 7e-4 \
     --critic_lr 7e-4 \
     --user_name "jimmydeng" \
-    # --use_recurrent_policy \
+    --use_recurrent_policy \
     # --share_policy \
     #--wandb_name "zoeyuchao" 
 done
