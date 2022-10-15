@@ -1,14 +1,17 @@
 #!/bin/sh
 env="MPE"
+scenario="simple_world_comm"  # simple_spread  # simple_reference
 scenario="simple_spread"  # simple_spread  # simple_reference
 num_landmarks=3
 num_agents=3
+# num_good_agents=2
+# num_adversaries=1
 algo="rmappo"
 # algo="mappo" # set --use_recurrent_policy (will be False, default by True)
 num_torch_threads=8
 num_rollout_env=32
-# exp="simple_spread_share_${num_torch_threads}t${num_rollout_env}p"
-exp="simple_spread_separate_${num_torch_threads}t${num_rollout_env}p" # also set --share_policy (default by True) 
+exp="simple_spread_share_${num_torch_threads}t${num_rollout_env}p"
+# exp="simple_spread_separate_${num_torch_threads}t${num_rollout_env}p" # also set --share_policy (default by True) 
 num_env_steps=20000000
 # num_env_steps=10000000
 seed_max=1
@@ -35,7 +38,9 @@ do
     --gain 0.01 \
     --lr 7e-4 \
     --critic_lr 7e-4 \
-    --user_name "jimmydeng" \
-    --share_policy
-    # --use_recurrent_policy
+    --user_name "jimmydeng"
 done
+    # --share_policy
+    # --use_recurrent_policy
+    # --num_good_agents ${num_good_agents} \
+    # --num_adversaries ${num_adversaries} \
