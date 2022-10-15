@@ -1,7 +1,8 @@
-from distutils.spawn import spawn
 from enum import Enum
+from readline import insert_text
 from time import time
 from typing import Any, Optional
+import gym.spaces
 
 '''
 color2num = dict(
@@ -197,7 +198,6 @@ def time_str(s):
 ''' gym space '''
 
 def get_space_dim(space) -> int:
-    import gym.spaces
     if isinstance(space, gym.spaces.Box):
         return space.shape[0]  # type: ignore
     elif isinstance(space, gym.spaces.Discrete):
@@ -210,6 +210,20 @@ def get_space_dim(space) -> int:
         return dim
     else:
         raise NotImplementedError
+
+def dict_to_list(ary_dict) -> list:
+    ''' transfer a gym.spaces.Dict space to list of space '''
+    ary_list = []
+    if isinstance(ary_dict, gym.spaces.Dict):
+        for k in ary_dict: #type: ignore
+            ary_list.append(ary_dict[k]) #type: ignore
+    elif isinstance(ary_dict, dict):
+        for k in ary_dict.keys():
+            ary_list.append(ary_dict[k])
+    else:
+        raise NotImplementedError
+
+    return ary_list 
 
 
 def test_get_space_dim():

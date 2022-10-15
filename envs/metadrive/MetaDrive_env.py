@@ -35,7 +35,7 @@ def MetaDriveEnv(args, rank):
         .n                  :   Returns the number of Agents
     '''
 
-    debug_print(">>> MetaDriveEnv:", rank)
+    debug_print(">>> building MetaDriveEnv, seed:", rank, inline=True)
     ENV_NAME = args.scenario_name # "Roundabout"
 
     ''' set args '''

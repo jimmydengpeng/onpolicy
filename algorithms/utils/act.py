@@ -1,6 +1,7 @@
 from .distributions import Bernoulli, Categorical, DiagGaussian
 import torch
 import torch.nn as nn
+from onpolicy.utils.utils import debug_msg, debug_print
 
 class ACTLayer(nn.Module):
     """
@@ -16,15 +17,19 @@ class ACTLayer(nn.Module):
         self.multi_discrete = False
 
         if action_space.__class__.__name__ == "Discrete":
+            debug_msg("ACTLayer: Discrete action_space")
             action_dim = action_space.n
             self.action_out = Categorical(inputs_dim, action_dim, use_orthogonal, gain)
         elif action_space.__class__.__name__ == "Box":
+            debug_msg("ACTLayer: init Box action_space")
             action_dim = action_space.shape[0]
             self.action_out = DiagGaussian(inputs_dim, action_dim, use_orthogonal, gain)
         elif action_space.__class__.__name__ == "MultiBinary":
+            debug_msg("ACTLayer: MultiBinary action_space")
             action_dim = action_space.shape[0]
             self.action_out = Bernoulli(inputs_dim, action_dim, use_orthogonal, gain)
         elif action_space.__class__.__name__ == "MultiDiscrete":
+            debug_msg("ACTLayer: MultiDiscrete action_space")
             self.multi_discrete = True
             action_dims = action_space.high - action_space.low + 1
             self.action_outs = []

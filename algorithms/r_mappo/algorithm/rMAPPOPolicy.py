@@ -67,7 +67,7 @@ class R_MAPPOPolicy:
         actions, action_log_probs, rnn_states_actor = self.actor(obs,
                                                                  rnn_states_actor,
                                                                  masks,
-                                                                 available_actions,
+                                                                 available_actions, # None by default
                                                                  deterministic)
 
         values, rnn_states_critic = self.critic(cent_obs, rnn_states_critic, masks)

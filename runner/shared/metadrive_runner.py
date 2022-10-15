@@ -4,15 +4,15 @@ import torch
 from onpolicy.runner.shared.base_runner import Runner
 import wandb
 import imageio
-from onpolicy.utils.utils import debug_print
+from onpolicy.utils.utils import debug_msg, debug_print
 
 def _t2n(x):
     return x.detach().cpu().numpy()
 
-class MPERunner(Runner):
+class MetaDriveRunner(Runner):
     """Runner class to perform training, evaluation. and data collection for the MPEs. See parent class for details."""
     def __init__(self, config):
-        super(MPERunner, self).__init__(config)
+        super(MetaDriveRunner, self).__init__(config)
 
     def run(self):
         self.warmup()   
@@ -28,9 +28,10 @@ class MPERunner(Runner):
                 # Sample actions
                 values, actions, action_log_probs, rnn_states, rnn_states_critic, actions_env = self.collect(step)
  
+                debug_msg("1")
                 # Obser reward and next obs
                 obs, rewards, dones, infos = self.envs.step(actions_env)
-
+                debug_msg("2")
                 data = obs, rewards, dones, infos, values, actions, action_log_probs, rnn_states, rnn_states_critic
 
                 # insert data into buffer
@@ -81,12 +82,11 @@ class MPERunner(Runner):
 
     def warmup(self):
         # reset env
-        obs = self.envs.reset()
-
+        obs = self.envs.reset() # obs.shape: (n_rollout_threads, num_agents, obs_dim)
         # replay buffer
         if self.use_centralized_V:
-            share_obs = obs.reshape(self.n_rollout_threads, -1)
-            share_obs = np.expand_dims(share_obs, 1).repeat(self.num_agents, axis=1)
+            share_obs = obs.reshape(self.n_rollout_threads, -1) # shape: (n_rollout_threads, num_agents * obs_dim)
+            share_obs = np.expand_dims(share_obs, 1).repeat(self.num_agents, axis=1) #FIXME in MPE, global state is a concatenation of all agents' local obs
         else:
             share_obs = obs
 
@@ -118,7 +118,8 @@ class MPERunner(Runner):
                     actions_env = np.concatenate((actions_env, uc_actions_env), axis=2)
         elif self.envs.action_space[0].__class__.__name__ == 'Discrete':
             actions_env = np.squeeze(np.eye(self.envs.action_space[0].n)[actions], 2)
-            #                            |-> shape: (5, 5)                  |-> shape: (n_rollout_threads, num_agents, 1)
+        elif self.envs.action_space[0].__class__.__name__ == 'Box':
+            debug_msg(">>> Box")
         else:
             raise NotImplementedError
 

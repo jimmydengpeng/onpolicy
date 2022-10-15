@@ -1,6 +1,7 @@
 """
 Modified from OpenAI Baselines code to work with multi-agent envs
 """
+from distutils.log import debug
 import numpy as np
 import torch
 from multiprocessing import Process, Pipe
@@ -41,9 +42,19 @@ class ShareVecEnv(ABC):
 
     def __init__(self, num_envs, observation_space, share_observation_space, action_space):
         self.num_envs = num_envs
-        self.observation_space = observation_space
-        self.share_observation_space = share_observation_space
-        self.action_space = action_space
+
+        ''' NOTE: Special process for MetaDriveEnv: every space is type of list ''' 
+        import gym.spaces.dict
+        if isinstance(observation_space, gym.spaces.dict.Dict) \
+            and isinstance(share_observation_space, gym.spaces.dict.Dict) \
+            and isinstance(action_space, gym.spaces.dict.Dict):
+            self.observation_space = dict_to_list(observation_space)
+            self.share_observation_space = dict_to_list(share_observation_space)
+            self.action_space = dict_to_list(action_space)
+        else: # for [list] type of spaces
+            self.observation_space = observation_space
+            self.share_observation_space = share_observation_space
+            self.action_space = action_space
 
     @abstractmethod
     def reset(self):
@@ -282,7 +293,7 @@ class SubprocVecEnv(ShareVecEnv):
     def reset(self):
         for remote in self.remotes:
             remote.send(('reset', None))
-        obs = [remote.recv() for remote in self.remotes]
+        obs = [dict_to_list(remote.recv()) for remote in self.remotes]
         return np.stack(obs)
 
 

@@ -7,15 +7,16 @@ import setproctitle
 import numpy as np
 from pathlib import Path
 import torch
+import torch.backends.cudnn
 from onpolicy.config import get_config
 # from onpolicy.envs.mpe.MPE_env import MPEEnv
 from onpolicy.envs.metadrive.MetaDrive_env import MetaDriveEnv
-from onpolicy.envs.env_wrappers import SubprocVecEnv, DummyVecEnv
+from onpolicy.envs.metadrive_env_wrappers import SubprocVecEnv, DummyVecEnv, ShareVecEnv
 from onpolicy.utils.utils import LogLevel, debug_msg, debug_print
 
 """Train script for MetaDrive."""
 
-def make_train_env(all_args):
+def make_train_env(all_args) -> ShareVecEnv:
     def get_env_fn(rank):
         def init_env():
             if all_args.env_name == "MetaDrive":
@@ -30,7 +31,7 @@ def make_train_env(all_args):
     else:
         return SubprocVecEnv([get_env_fn(i) for i in range(all_args.n_rollout_threads)])
 
-def make_eval_env(all_args):
+def make_eval_env(all_args) -> ShareVecEnv:
     def get_env_fn(rank):
         def init_env():
             if all_args.env_name == "MetaDrive":
@@ -41,6 +42,7 @@ def make_eval_env(all_args):
             return env
         return init_env
     if all_args.n_eval_rollout_threads == 1:
+        debug_msg("all_args.n_eval_rollout_threads == 1")
         return DummyVecEnv([get_env_fn(0)])
     else:
         return SubprocVecEnv([get_env_fn(i) for i in range(all_args.n_eval_rollout_threads)])
@@ -80,7 +82,7 @@ def main(args):
         debug_msg("choose to use gpu...", level=LogLevel.SUCCESS)
         device = torch.device("cuda:0")
         torch.set_num_threads(all_args.n_training_threads)
-        if all_args.cuda_deterministic:
+        if all_args.cuda_deterministic: # default by True
             torch.backends.cudnn.benchmark = False
             torch.backends.cudnn.deterministic = True
     else:
@@ -142,12 +144,16 @@ def main(args):
         "run_dir": run_dir
     }
 
+    debug_print(">>> Using share_policy:", all_args.share_policy, inline=True, level=LogLevel.INFO)
     # run experiments
     if all_args.share_policy:
-        from onpolicy.runner.shared.mpe_runner import MPERunner as Runner
+        from onpolicy.runner.shared.metadrive_runner import MetaDriveRunner as Runner
     else:
-        from onpolicy.runner.separated.mpe_runner import MPERunner as Runner
+        from onpolicy.runner.separated.metadrive_runner import MetaDriveRunner as Runner
 
+    # debug_print("action_space", envs.action_space)
+    # debug_print("share_observation_space", envs.share_observation_space)
+    # debug_print("observation_space", envs.observation_space)
     runner = Runner(config)
     runner.run()
     
