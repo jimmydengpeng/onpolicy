@@ -1,5 +1,6 @@
 import time
 import numpy as np
+from copy import copy
 import torch
 from onpolicy.runner.shared.base_runner import Runner
 import wandb
@@ -24,14 +25,19 @@ class MetaDriveRunner(Runner):
             if self.use_linear_lr_decay:
                 self.trainer.policy.lr_decay(episode, episodes)
 
+            last_step_infos = []
             for step in range(self.episode_length):
+                # debug_msg("0")
                 # Sample actions
                 values, actions, action_log_probs, rnn_states, rnn_states_critic, actions_env = self.collect(step)
  
-                debug_msg("1")
+                # debug_msg("1")
                 # Obser reward and next obs
                 obs, rewards, dones, infos = self.envs.step(actions_env)
-                debug_msg("2")
+                #                      ^--> list of dict: [ {'agent0': r, ... * n_agents}, ... * n_envs ]
+                if step == self.episode_length - 2:
+                    last_step_infos = copy(infos)
+                # debug_msg("2")
                 data = obs, rewards, dones, infos, values, actions, action_log_probs, rnn_states, rnn_states_critic
 
                 # insert data into buffer
@@ -61,20 +67,35 @@ class MetaDriveRunner(Runner):
                                 self.num_env_steps,
                                 int(total_num_steps / (end - start))))
 
-                if self.env_name == "MPE":
-                    env_infos = {}
-                    for agent_id in range(self.num_agents):
-                        idv_rews = []
-                        for info in infos:
-                            if 'individual_reward' in info[agent_id].keys():
-                                idv_rews.append(info[agent_id]['individual_reward'])
-                        agent_k = 'agent%i/individual_rewards' % agent_id
-                        env_infos[agent_k] = idv_rews
+                # env_infos = {}
+                # for agent_id in range(self.num_agents):
+                #     idv_rews = []
+                #     for info in infos: #FIXME
+                #         if 'step_reward' in info[agent_id].keys():
+                #             idv_rews.append(info[agent_id]['step_reward'])
+                #     agent_k = 'agent%i/individual_rewards' % agent_id
+                #     env_infos[agent_k] = idv_rews
+
+                '''
+                1. individual rewards in one episode (环境的车辆数量不是每一时刻都是严格的最大车辆数)
+                2. global total/sum rewards of every agents in one episode
+                '''
+                epi_total_rew_infos = {}
+                total_rewards = []
+                for env_epi_rew in last_step_infos:
+                    one_env_total_rew = 0
+                    for a, r in env_epi_rew.items():
+                        one_env_total_rew += r
+                    total_rewards.append(one_env_total_rew) 
+                epi_total_rew_infos['total_episode_rewards'] = np.mean(total_rewards)
+                self.log_train(epi_total_rew_infos, total_num_steps)
+                print("global episode rewards is {}".format(epi_total_rew_infos['total_episode_rewards']))
+
 
                 train_infos["average_episode_rewards"] = np.mean(self.buffer.rewards) * self.episode_length
                 print("average episode rewards is {}".format(train_infos["average_episode_rewards"]))
                 self.log_train(train_infos, total_num_steps)
-                self.log_env(env_infos, total_num_steps)
+                # self.log_env(env_infos, total_num_steps)
 
             # eval
             if episode % self.eval_interval == 0 and self.use_eval:
@@ -109,19 +130,8 @@ class MetaDriveRunner(Runner):
         rnn_states = np.array(np.split(_t2n(rnn_states), self.n_rollout_threads))
         rnn_states_critic = np.array(np.split(_t2n(rnn_states_critic), self.n_rollout_threads))
         # rearrange action
-        if self.envs.action_space[0].__class__.__name__ == 'MultiDiscrete':
-            for i in range(self.envs.action_space[0].shape):
-                uc_actions_env = np.eye(self.envs.action_space[0].high[i] + 1)[actions[:, :, i]]
-                if i == 0:
-                    actions_env = uc_actions_env
-                else:
-                    actions_env = np.concatenate((actions_env, uc_actions_env), axis=2)
-        elif self.envs.action_space[0].__class__.__name__ == 'Discrete':
-            actions_env = np.squeeze(np.eye(self.envs.action_space[0].n)[actions], 2)
-        elif self.envs.action_space[0].__class__.__name__ == 'Box':
-            debug_msg(">>> Box")
-        else:
-            raise NotImplementedError
+        assert self.envs.action_space[0].__class__.__name__ == 'Box'
+        actions_env = actions
 
         return values, actions, action_log_probs, rnn_states, rnn_states_critic, actions_env
 

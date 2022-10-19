@@ -19,7 +19,7 @@ from onpolicy.utils.utils import LogLevel, debug_msg, debug_print
 def make_train_env(all_args) -> ShareVecEnv:
     def get_env_fn(rank):
         def init_env():
-            if all_args.env_name == "MetaDrive":
+            if "MetaDrive" in all_args.env_name:
                 env = MetaDriveEnv(all_args, rank)
             else:
                 print("Can not support the " + all_args.env_name + "environment.")
@@ -27,14 +27,14 @@ def make_train_env(all_args) -> ShareVecEnv:
             return env
         return init_env
     if all_args.n_rollout_threads == 1:
-        return DummyVecEnv([get_env_fn(0)])
+        return  SubprocVecEnv([get_env_fn(0)])
     else:
         return SubprocVecEnv([get_env_fn(i) for i in range(all_args.n_rollout_threads)])
 
 def make_eval_env(all_args) -> ShareVecEnv:
     def get_env_fn(rank):
         def init_env():
-            if all_args.env_name == "MetaDrive":
+            if "MetaDrive" in all_args.env_name:
                 env = MetaDriveEnv(all_args, rank)
             else:
                 print("Can not support the " + all_args.env_name + "environment.")
@@ -92,7 +92,7 @@ def main(args):
 
     # run dir
     run_dir = Path(os.path.split(os.path.dirname(os.path.abspath(__file__)))[0] + "/results") \
-                / all_args.env_name / all_args.scenario_name / all_args.algorithm_name / all_args.experiment_name
+                / all_args.env_name / all_args.algorithm_name / all_args.experiment_name
     if not run_dir.exists():
         os.makedirs(str(run_dir))
 

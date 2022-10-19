@@ -2,7 +2,6 @@ from enum import Enum
 from readline import insert_text
 from time import time
 from typing import Any, Optional
-import gym.spaces
 
 '''
 color2num = dict(
@@ -195,46 +194,6 @@ def time_str(s):
     return string
 
 
-''' gym space '''
-
-def get_space_dim(space) -> int:
-    if isinstance(space, gym.spaces.Box):
-        return space.shape[0]  # type: ignore
-    elif isinstance(space, gym.spaces.Discrete):
-        return space.n  # type: ignore
-    elif isinstance(space, gym.spaces.Dict): # multi-agent
-        spaces = [get_space_dim(space[key]) for key in space] # type: ignore
-        dim = spaces[0]
-        spaces = [s - dim for s in spaces]
-        assert not any(spaces)
-        return dim
-    else:
-        raise NotImplementedError
-
-def dict_to_list(ary_dict) -> list:
-    ''' transfer a gym.spaces.Dict space to list of space '''
-    ary_list = []
-    if isinstance(ary_dict, gym.spaces.Dict):
-        for k in ary_dict: #type: ignore
-            ary_list.append(ary_dict[k]) #type: ignore
-    elif isinstance(ary_dict, dict):
-        for k in ary_dict.keys():
-            ary_list.append(ary_dict[k])
-    else:
-        raise NotImplementedError
-
-    return ary_list 
-
-
-def test_get_space_dim():
-    import gym
-    from elegantrl.train.config import get_gym_env_args
-
-    env = gym.make("CartPole-v1")
-    debug_print("action space:", args=get_space_dim(env.action_space))
-    debug_print("obs space:", args=get_space_dim(env.observation_space))
-    print(get_gym_env_args(env, if_print=True))
-
 def test_debug_log_functions():
     print("="*10 + " every color " + "="*10)
     for c in Color:
@@ -267,6 +226,4 @@ def test_debug_log_functions():
 if __name__ == "__main__":
     # test_debug_log_functions()
     # test_get_space_dim()
-    print(formatted_sec(60))
-    print(formatted_sec(342))
-    print(formatted_sec(12345))
+    pass

@@ -1,20 +1,20 @@
 #!/bin/sh
-env="MetaDrive"
+env="MetaDriveRoundabout"
 scenario="Roundabout"
-num_agents=2
-# algo="rmappo"
-algo="mappo" # set --use_recurrent_policy (will be False, default by True)
-num_torch_threads=2
-num_rollout_env=2
-# num_env_steps=20000000
-num_env_steps=10000
-seed_max=1
-
+num_agents=8
+algo="rmappo"
+# algo="mappo" # set --use_recurrent_policy (will be False, default by True)
+num_torch_threads=8
+num_rollout_env=8
+num_env_steps=10000000
+# num_env_steps=10000
+seed_max=5
+horizon=1000
 SHARE=true # <~~ Change Here!
 
 if $SHARE
 then
-    exp="${scenario}_share_${num_torch_threads}t${num_rollout_env}p"
+    exp="share_${num_agents}a${num_torch_threads}t${num_rollout_env}p"
     echo "env is ${env}, scenario is ${scenario}, algo is ${algo}, exp is ${exp}, max seed is ${seed_max}"
     for seed in `seq ${seed_max}`;
     do
@@ -29,7 +29,7 @@ then
         --n_training_threads ${num_torch_threads} \
         --n_rollout_threads ${num_rollout_env} \
         --num_mini_batch 1 \
-        --episode_length 25 \
+        --episode_length ${horizon} \
         --num_env_steps ${num_env_steps} \
         --ppo_epoch 10 \
         --use_ReLU \
@@ -37,9 +37,10 @@ then
         --lr 7e-4 \
         --critic_lr 7e-4 \
         --user_name "jimmydeng" \
-        --use_recurrent_policy \
         --use_centralized_V \
-        --use_wandb
+        --log_interval 1
+        # --use_recurrent_policy \
+        # --use_wandb
     done
 else
     exp="${scenario}_separate_${num_torch_threads}t${num_rollout_env}p"
@@ -57,7 +58,7 @@ else
         --n_training_threads ${num_torch_threads} \
         --n_rollout_threads ${num_rollout_env} \
         --num_mini_batch 1 \
-        --episode_length 25 \
+        --episode_length ${horizon} \
         --num_env_steps ${num_env_steps} \
         --ppo_epoch 10 \
         --use_ReLU \

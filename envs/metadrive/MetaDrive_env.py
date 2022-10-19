@@ -46,7 +46,7 @@ def MetaDriveEnv(args, rank):
         num_agents=args.num_agents,
         manual_control=False,
         crash_done=False,
-        horizon=1000, # default in env
+        horizon=1000, # default by env
     )
 
     env_func = envs[ENV_NAME]
