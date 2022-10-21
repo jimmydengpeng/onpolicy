@@ -1,11 +1,11 @@
 #!/bin/sh
 env="MetaDriveRoundabout"
 scenario="Roundabout"
-num_agents=8
-algo="rmappo"
-# algo="mappo" # set --use_recurrent_policy (will be False, default by True)
+num_agents=16
+# algo="rmappo"
+algo="mappo" # set --use_recurrent_policy (will be False, default by True)
 num_torch_threads=8
-num_rollout_env=8
+num_rollout_env=16
 num_env_steps=10000000
 # num_env_steps=10000
 seed_max=5
@@ -36,10 +36,10 @@ then
         --gain 0.01 \
         --lr 7e-4 \
         --critic_lr 7e-4 \
+        --log_interval 1 \
         --user_name "jimmydeng" \
         --use_centralized_V \
-        --log_interval 1
-        # --use_recurrent_policy \
+        --use_recurrent_policy
         # --use_wandb
     done
 else
@@ -65,8 +65,10 @@ else
         --gain 0.01 \
         --lr 7e-4 \
         --critic_lr 7e-4 \
+        --log_interval 1 \
         --user_name "jimmydeng" \
-        --use_recurrent_policy \
         --share_policy
     done
 fi
+
+        # --use_recurrent_policy \
