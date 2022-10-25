@@ -4,7 +4,7 @@ import math, time
 import numpy as np
 from collections import defaultdict
 from gym import Wrapper
-from onpolicy.utils.utils import debug_print
+from onpolicy.utils.utils import LogLevel, debug_print, debug_msg, pretty_print
 
 from metadrive import (
     MultiAgentMetaDrive, MultiAgentTollgateEnv, MultiAgentBottleneckEnv, MultiAgentIntersectionEnv,
@@ -289,9 +289,24 @@ class MetaDriveEvalEnv(Wrapper):
             for kkk in active_agents:
                 agent_len_list[kkk] = self.user_data["episode_length"][step].get(kkk, 0)
         ret["episode_length_mean"] = np.mean(list(agent_len_list.values()))
-        success_ep_len_mean = [
-            vvv for kkk, vvv in agent_len_list.items() if self.user_data["success"][self.EPISODE_END][kkk]
-        ]
+
+        # flag = False
+        # for kkk, vvv in agent_len_list.items():
+        #     if kkk not in self.user_data["success"][self.EPISODE_END]:
+        #         debug_msg(f"{kkk} not in, ", level=LogLevel.ERROR)
+        #         flag = True
+        # if flag:
+        #     debug_print("", agent_len_list)
+
+        success_ep_len_mean = []
+        for kkk, vvv in agent_len_list.items():
+            if kkk in self.user_data["success"][self.EPISODE_END]:
+                success_ep_len_mean.append(vvv)
+
+        # success_ep_len_mean = [
+        #     vvv for kkk, vvv in agent_len_list.items() if self.user_data["success"][self.EPISODE_END][kkk]
+        # ]
+
         ret["success_episode_length_mean"] = np.mean(success_ep_len_mean) if success_ep_len_mean else 0
 
         # ===== Group 3: Meta stats =====
@@ -414,6 +429,15 @@ def getMetaDriveEnv(args, rank, env_config=None):
     return MetaDriveEvalEnv(env)
 
 
+def detect_new_spawn(infos):
+    flag = False
+    for a in infos:
+        if infos[a] == {}:
+            debug_msg(f">>> step {i}, new: {a}")
+            flag = True
+    return flag
+                    
+
 if __name__ == "__main__":
 
     import argparse
@@ -429,11 +453,11 @@ if __name__ == "__main__":
         # "use_render": True if not args.pygame_render else False,
         "use_render": False,
         "manual_control": True,
-        "crash_done": False,
+        "crash_done": True,
         "agent_policy": ManualControllableIDMPolicy,
-        "num_agents": 32,
+        "num_agents": 16,
         "horizon": 1000, # default by env
-        "delay_done": 0
+        "delay_done": 25
         # "allow_respawn": False
     }
 
@@ -442,32 +466,72 @@ if __name__ == "__main__":
     env = getMetaDriveEnv(args, 0, env_config) 
 
     ''' eval '''
-    env.reset()
+    obs = env.reset()
     start = time.time()
     if env.current_track_vehicle:
+        print(env.current_track_vehicle)
         env.current_track_vehicle.expert_takeover = True
+    
+    # relative_step = 2
+    # relative_flag = False
+    all_agents = set(obs.keys())
+
+
     max_steps = 1000
-    relative_step = 2
-    relative_flag = False
     for i in range(1, max_steps):
         obs, rews, dones, infos = env.step({agent_id: [0, 0] for agent_id in env.vehicles.keys()})
-        # print(">>>", i, dones)
-        for a in infos:
-            if infos[a] != {} and infos[a]['crash'] == True:
-                relative_flag = True
-                print(a, dones[a])
-                print(obs.keys())
 
-        if relative_flag:
-            relative_step -= 1
-        if relative_step < 0:
-            pass
-        if relative_step == 0 or relative_step == 1 :
-            print(obs.keys())
-            print(dones.keys())
-            print(rews.keys())
-            print(infos.keys())
+        # if relative_flag:
+        #     if detect_new_spawn(infos):
+        #         exit()
+
+
+        # if len(env.vehicles) != len(obs):
+        #     debug_msg(f">>> step {i}: env.vehicles{len(env.vehicles)} != {len(obs)} len(obs)")
+
+        #     print("diff:", env.vehicles.keys() ^ obs.keys())
+        #     # print(env.vehicles.keys() - obs.keys())
+        #     print("new crash:", obs.keys() - env.vehicles.keys() )
+        #     debug_print("len(obs)", len(obs), inline=True)
+        #     debug_print("len(infos)", len(infos), inline=True)
+
+        #     print()
+        #     for a in dones:
+        #         if dones[a]:
+        #             print("new done:", a)
+        #     for a in infos:
+        #         if infos[a] != {}:
+        #             if infos[a]['arrive_dest']:
+        #                 print(a, 'arrive_dest')
+        #             if infos[a]['crash']:
+        #                 print(a, 'crash')
+        #             if infos[a]['out_of_road']:
+        #                 print(a, 'out_of_road')
+        #         else:
+        #             print("new:", a)
+
+        #     relative_flag = True
+
+
+                    
+                
+        #     for a in infos:
+        #         if infos[a] != {} and infos[a]['crash'] == True:
+        #             relative_flag = True
+        #             # print(a, dones[a])
+        #             # print(obs.keys())
+
+        # if relative_flag:
+        #     relative_step -= 1
+        # if relative_step < 0:
+        #     pass
+        # if relative_step == 0 or relative_step == 1 :
+        #     print(obs.keys())
+        #     print(dones.keys())
+        #     print(rews.keys())
+        #     print(infos.keys())
             
+        all_agents |= set(obs.keys())
         
         step_stat = env.get_step_result()
         step_stat = {k: "{:.3f}".format(v) for k, v in step_stat.items()}
@@ -484,6 +548,9 @@ if __name__ == "__main__":
             print(f" >>> reset() @ step {i}\n")
             env.reset()
             # break
+
+    debug_print("all_agents", all_agents)
+    debug_print("all_agents", len(all_agents))
 
     res = env.get_episode_result()
     env.close()
