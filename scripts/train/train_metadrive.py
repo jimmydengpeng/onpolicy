@@ -10,7 +10,7 @@ import torch
 import torch.backends.cudnn
 from onpolicy.config import get_config
 # from onpolicy.envs.mpe.MPE_env import MPEEnv
-from onpolicy.envs.metadrive.MetaDrive_env import MetaDriveEnv
+from onpolicy.envs.metadrive.MetaDrive_env import getMetaDriveEnv
 from onpolicy.envs.metadrive_env_wrappers import SubprocVecEnv, DummyVecEnv, ShareVecEnv
 from onpolicy.utils.utils import LogLevel, debug_msg, debug_print
 
@@ -20,7 +20,7 @@ def make_train_env(all_args) -> ShareVecEnv:
     def get_env_fn(rank):
         def init_env():
             if "MetaDrive" in all_args.env_name:
-                env = MetaDriveEnv(all_args, rank)
+                env = getMetaDriveEnv(all_args, rank)
             else:
                 print("Can not support the " + all_args.env_name + "environment.")
                 raise NotImplementedError
@@ -35,7 +35,7 @@ def make_eval_env(all_args) -> ShareVecEnv:
     def get_env_fn(rank):
         def init_env():
             if "MetaDrive" in all_args.env_name:
-                env = MetaDriveEnv(all_args, rank)
+                env = getMetaDriveEnv(all_args, rank)
             else:
                 print("Can not support the " + all_args.env_name + "environment.")
                 raise NotImplementedError

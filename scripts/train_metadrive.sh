@@ -5,10 +5,10 @@ num_agents=16
 # algo="rmappo"
 algo="mappo" # set --use_recurrent_policy (will be False, default by True)
 num_torch_threads=8
-num_rollout_env=16
+num_rollout_env=4
 num_env_steps=10000000
 # num_env_steps=10000
-seed_max=5
+seed_max=8
 horizon=1000
 SHARE=true # <~~ Change Here!
 
