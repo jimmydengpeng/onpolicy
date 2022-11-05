@@ -4,6 +4,8 @@ import numpy as np
 import torch
 from tensorboardX import SummaryWriter
 from onpolicy.utils.shared_buffer import SharedReplayBuffer
+from colorlog import logger
+from onpolicy.utils.env_utils import get_single_agent_space
 
 def _t2n(x):
     """Convert torch tensor to a numpy array."""
@@ -66,17 +68,20 @@ class Runner(object):
         from onpolicy.algorithms.r_mappo.r_mappo import R_MAPPO as TrainAlgo
         from onpolicy.algorithms.r_mappo.algorithm.rMAPPOPolicy import R_MAPPOPolicy as Policy
 
-        share_observation_space = self.envs.share_observation_space[0] if self.use_centralized_V else self.envs.observation_space[0] #FIXME if use_centralized_V 
+        observation_space = get_single_agent_space(self.envs.observation_space)
+        share_observation_space = get_single_agent_space(self.envs.share_observation_space) if self.use_centralized_V else observation_space #FIXME use_centralized_V by default 
+        action_space = get_single_agent_space(self.envs.action_space)
 
         # policy network
         self.policy = Policy(self.all_args,
-                            self.envs.observation_space[0],
+                            observation_space,
                             share_observation_space,
-                            self.envs.action_space[0],
+                            action_space,
                             device = self.device)
 
         if self.model_dir is not None:
             self.restore()
+            logger.success("restored model in:", self.model_dir)
 
         # algorithm
         '''only one shared policy'''
@@ -85,9 +90,9 @@ class Runner(object):
         # buffer
         self.buffer = SharedReplayBuffer(self.all_args,
                                         self.num_agents,
-                                        self.envs.observation_space[0],
+                                        observation_space,
                                         share_observation_space,
-                                        self.envs.action_space[0])
+                                        action_space)
 
     def run(self):
         """Collect training data, perform training updates, and evaluate policy."""

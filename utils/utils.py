@@ -1,8 +1,8 @@
 from enum import Enum
-from readline import insert_text
 from time import time
 from typing import Any, Optional
-
+import json, yaml, numbers
+import numpy as np
 '''
 color2num = dict(
     gray=30,
@@ -102,6 +102,44 @@ def debug_print(
     print(args)
 
 
+# from CoPO
+class SafeFallbackEncoder(json.JSONEncoder):
+    def __init__(self, nan_str="null", **kwargs):
+        super(SafeFallbackEncoder, self).__init__(**kwargs)
+        self.nan_str = nan_str
+
+    def default(self, value):
+        try:
+            if np.isnan(value):
+                return self.nan_str
+
+            if (type(value).__module__ == np.__name__ and isinstance(value, np.ndarray)):
+                return value.tolist()
+
+            if issubclass(type(value), numbers.Integral):
+                return int(value)
+            if issubclass(type(value), numbers.Number):
+                return float(value)
+
+            return super(SafeFallbackEncoder, self).default(value)
+
+        except Exception:
+            return str(value)  # give up, just stringify it (ok for logs)
+
+# from CoPO
+def pretty_print(result):
+    result = result.copy()
+    result.update(config=None)  # drop config from pretty print
+    result.update(hist_stats=None)  # drop hist_stats from pretty print
+    out = {}
+    for k, v in result.items():
+        if v is not None:
+            out[k] = v
+
+    cleaned = json.dumps(out, cls=SafeFallbackEncoder)
+    return yaml.safe_dump(json.loads(cleaned), default_flow_style=False)
+
+
 def get_formatted_time():
     """
     return: e.g. 20220921_200435
@@ -176,7 +214,7 @@ def sec2hms(time_in_sec):
         s = remainder % 60
         return get_h(h) + get_m(m) + get_s(s)
     
-def time_str(s):
+def time_str(s, simple=False):
     """
     Convert seconds to a nicer string showing days, hours, minutes and seconds
     """
@@ -184,14 +222,24 @@ def time_str(s):
     hours, remainder = divmod(remainder, 60 * 60)
     minutes, seconds = divmod(remainder, 60)
     string = ""
-    if days > 0:
-        string += f"{int(days):d} days, "
-    if hours > 0:
-        string += f"{int(hours):d} hours, "
-    if minutes > 0:
-        string += f"{int(minutes):d} minutes, "
-    string += f"{int(seconds):d} seconds"
-    return string
+    if not simple:
+        if days > 0:
+            string += f"{int(days):d} days, "
+        if hours > 0:
+            string += f"{int(hours):d} hours, "
+        if minutes > 0:
+            string += f"{int(minutes):d} minutes, "
+        string += f"{int(seconds):d} seconds"
+        return string
+    else:
+        if days > 0:
+            string += f"{int(days):d}d"
+        if hours > 0:
+            string += f"{int(hours):d}:"
+        if minutes > 0:
+            string += f"{int(minutes):02d}:"
+        string += f"{int(seconds):02d}s"
+        return string
 
 
 def test_debug_log_functions():

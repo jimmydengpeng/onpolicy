@@ -1,3 +1,5 @@
+from collections import defaultdict
+from email.policy import default
 import time
 import numpy as np
 from copy import copy
@@ -5,10 +7,23 @@ import torch
 from onpolicy.runner.shared.base_runner import Runner
 import wandb
 import imageio
-from onpolicy.utils.utils import debug_msg, debug_print
+from onpolicy.utils.utils import LogLevel, debug_msg, debug_print, time_str
+from onpolicy.utils.env_utils import get_single_agent_space
 
 def _t2n(x):
     return x.detach().cpu().numpy()
+
+def log_title():
+    print('#' * 108 + '\n'
+          f"{'seed':>4}{'Step':>10}{'totalStep':>12}{'episode':>10}  |"
+          f"{'avgRew':>8}{'sumRew':>10}{'numAgt':>8}  |"
+          f"{'succ':>7}{'crash':>7}{'out':>7}  |"
+          f"{'FPS':>6}{'ETA':>10}"
+    )
+    '''
+    ################################################################################
+    seed     Step    maxR |    avgR   stdR   avgS  stdS |    expR   objC   etc.
+    '''
 
 class MetaDriveRunner(Runner):
     """Runner class to perform training, evaluation. and data collection for the MPEs. See parent class for details."""
@@ -21,25 +36,18 @@ class MetaDriveRunner(Runner):
         start = time.time()
         episodes = int(self.num_env_steps) // self.episode_length // self.n_rollout_threads
 
+        log_title()
         for episode in range(episodes):
             if self.use_linear_lr_decay:
                 self.trainer.policy.lr_decay(episode, episodes)
 
-            last_step_infos = []
             for step in range(self.episode_length):
-                # debug_msg("0")
                 # Sample actions
                 values, actions, action_log_probs, rnn_states, rnn_states_critic, actions_env = self.collect(step)
- 
-                # debug_msg("1")
                 # Obser reward and next obs
                 obs, rewards, dones, infos = self.envs.step(actions_env)
                 #                      ^--> list of dict: [ {'agent0': r, ... * n_agents}, ... * n_envs ]
-                if step == self.episode_length - 2:
-                    last_step_infos = copy(infos)
-                # debug_msg("2")
                 data = obs, rewards, dones, infos, values, actions, action_log_probs, rnn_states, rnn_states_critic
-
                 # insert data into buffer
                 self.insert(data)
 
@@ -57,16 +65,16 @@ class MetaDriveRunner(Runner):
             # log information
             if episode % self.log_interval == 0:
                 end = time.time()
-                print("\n Scenario {} Algo {} Exp {} updates {}/{} episodes, total num timesteps {}/{}, FPS {}.\n"
-                        .format(self.all_args.scenario_name,
-                                self.algorithm_name,
-                                self.experiment_name,
-                                episode,
-                                episodes,
-                                total_num_steps,
-                                self.num_env_steps,
-                                int(total_num_steps / (end - start))))
-
+                # print("\n Scenario {} Algo {} Exp {} updates {}/{} episodes, total num timesteps {}/{}, FPS {}.\n"
+                #         .format(self.all_args.scenario_name,
+                #                 self.algorithm_name,
+                #                 self.experiment_name,
+                #                 episode,
+                #                 episodes,
+                #                 total_num_steps,
+                #                 self.num_env_steps,
+                #                 int(total_num_steps / (end - start))))
+                
                 # env_infos = {}
                 # for agent_id in range(self.num_agents):
                 #     idv_rews = []
@@ -80,23 +88,51 @@ class MetaDriveRunner(Runner):
                 1. individual rewards in one episode (环境的车辆数量不是每一时刻都是严格的最大车辆数)
                 2. global total/sum rewards of every agents in one episode
                 '''
-                epi_total_rew_infos = {}
-                total_rewards = []
-                for env_epi_rew in last_step_infos:
-                    one_env_total_rew = 0
-                    for a, r in env_epi_rew.items():
-                        one_env_total_rew += r
-                    total_rewards.append(one_env_total_rew) 
-                epi_total_rew_infos['total_episode_rewards'] = np.mean(total_rewards)
-                self.log_train(epi_total_rew_infos, total_num_steps)
-                print("global episode rewards is {}".format(epi_total_rew_infos['total_episode_rewards']))
+                episode_log_infos = {}
+                episode_results = infos #type: ignore # tuple of dict(every env's result) 
+                res_keys = ('episode_length_mean',
+                            'episode_reward_mean',
+                            'episode_reward_sum',
+                            'num_agents_total',
+                            'success_rate',
+                            'crash_rate',
+                            'out_rate')
+                skipped_keys = defaultdict(int)
+                for k in res_keys:
+                    # episode_log_infos[k] = np.mean([res[k] for res in episode_results if k in res])
+                    _data = []
+                    for res in episode_results:
+                        if k in res:
+                            _data.append(res[k])
+                        else:
+                            skipped_keys[k] += 1
+                            if res == {}:
+                                debug_msg(f"find 1 empty env res!!! @ key {k}")
+                    episode_log_infos[k] = np.mean(_data)
+                     
+                # if result from less env than normal
+                # episode_log_infos['<envs'] = skipped_keys if len(skipped_keys) > 0 else ""
+                if len(skipped_keys) > 0:
+                    debug_print(skipped_keys, level=LogLevel.ERROR)
+                    # debug_print(infos, level=LogLevel.ERROR)
+                    # from onpolicy.utils.utils import pretty_print
+        
 
+                self.log_train(episode_log_infos, total_num_steps)
 
-                train_infos["average_episode_rewards"] = np.mean(self.buffer.rewards) * self.episode_length
-                print("average episode rewards is {}".format(train_infos["average_episode_rewards"]))
+                # train_infos["average_episode_rewards"] = np.mean(self.buffer.rewards) * self.episode_length
+                time_used = (end - start)
+                fps = int(total_num_steps / time_used)
+                train_infos['fps'] = fps
+                eta = time_str((int((self.num_env_steps - total_num_steps) / fps)), simple=True)
+                print(f"{self.all_args.seed:>4}"
+                      f"{total_num_steps:>10}{self.num_env_steps:>12}{str(episode+1)+'/'+str(episodes):>10}  |" 
+                      f"{episode_log_infos['episode_reward_mean']:>8.2f}{episode_log_infos['episode_reward_sum']:>10.2f}{str(int(episode_log_infos['num_agents_total']))+'/'+str(self.num_agents):>8}  |"
+                      f"{episode_log_infos['success_rate']*100:>7.2f}{episode_log_infos['crash_rate']*100:>7.2f}{episode_log_infos['out_rate']*100:>7.2f}  |"
+                      f"{fps:>6}{eta:>10}"
+                    #   f"  | {episode_log_infos['<envs']}"
+                )
                 self.log_train(train_infos, total_num_steps)
-                # self.log_env(env_infos, total_num_steps)
-
             # eval
             if episode % self.eval_interval == 0 and self.use_eval:
                 self.eval(total_num_steps)
@@ -104,6 +140,7 @@ class MetaDriveRunner(Runner):
     def warmup(self):
         # reset env
         obs = self.envs.reset() # obs.shape: (n_rollout_threads, num_agents, obs_dim)
+        debug_print("reset obs shape", obs.shape, inline=True)
         # replay buffer
         if self.use_centralized_V:
             share_obs = obs.reshape(self.n_rollout_threads, -1) # shape: (n_rollout_threads, num_agents * obs_dim)
@@ -130,7 +167,7 @@ class MetaDriveRunner(Runner):
         rnn_states = np.array(np.split(_t2n(rnn_states), self.n_rollout_threads))
         rnn_states_critic = np.array(np.split(_t2n(rnn_states_critic), self.n_rollout_threads))
         # rearrange action
-        assert self.envs.action_space[0].__class__.__name__ == 'Box'
+        assert get_single_agent_space(self.envs.action_space).__class__.__name__ == 'Box'
         actions_env = actions
 
         return values, actions, action_log_probs, rnn_states, rnn_states_critic, actions_env
@@ -196,7 +233,7 @@ class MetaDriveRunner(Runner):
         self.log_env(eval_env_infos, total_num_steps)
 
     @torch.no_grad()
-    def render(self):
+    def render_old(self):
         """Visualize the env."""
         envs = self.envs
         
@@ -259,3 +296,50 @@ class MetaDriveRunner(Runner):
 
         if self.all_args.save_gifs:
             imageio.mimsave(str(self.gif_dir) + '/render.gif', all_frames, duration=self.all_args.ifi)
+
+    @torch.no_grad()
+    def render(self):
+        envs = self.envs
+
+        extra_args = dict(mode="top_down", film_size=(1000, 1000))
+
+        succ_rates = []
+        crash_rates = []
+        out_rates = []
+        for episode in range(self.all_args.render_episodes):
+            obs = envs.reset()
+
+            rnn_states = np.zeros((self.n_render_rollout_threads, self.num_agents, self.recurrent_N, self.hidden_size), dtype=np.float32)
+            masks = np.ones((self.n_render_rollout_threads, self.num_agents, 1), dtype=np.float32)
+            
+            for step in range(self.episode_length):
+                calc_start = time.time()
+
+                self.trainer.prep_rollout()
+                action, rnn_states = self.trainer.policy.act(np.concatenate(obs),
+                                                    np.concatenate(rnn_states),
+                                                    np.concatenate(masks),
+                                                    deterministic=True)
+                actions = np.array(np.split(_t2n(action), self.n_render_rollout_threads))
+                rnn_states = np.array(np.split(_t2n(rnn_states), self.n_render_rollout_threads))
+
+                assert self.envs.action_space[0].__class__.__name__ == 'Box'
+                actions_env = actions
+
+                # Obser reward and next obs
+                obs, rewards, dones, infos = envs.step(actions_env)
+
+                envs.render(**extra_args)
+                # time.sleep(0.015)
+
+            debug_msg(f"epi: {episode+1}/{self.all_args.render_episodes} finished!")
+            info = infos[0]
+            succ_rates.append(info['success_rate'])
+            crash_rates.append(info['crash_rate'])
+            succ_rates.append(info['out_rate'])
+        
+        debug_msg(f'average succ rate in {self.all_args.render_episodes} episodes:  {np.mean(succ_rates)*100:.2f}%', LogLevel.SUCCESS)
+        debug_msg(f'average crash rate in {self.all_args.render_episodes} episodes: {np.mean(crash_rates)*100:.2f}%', LogLevel.ERROR)
+        debug_msg(f'average out rate in {self.all_args.render_episodes} episodes:   {np.mean(out_rates)*100:.2f}%', LogLevel.WARNING)
+
+            # print("average episode rewards is: " + str(np.mean(np.sum(np.array(episode_rewards), axis=0))))
