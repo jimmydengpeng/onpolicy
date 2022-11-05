@@ -1,94 +1,94 @@
 
-DEFAULT_AGENT
-_DEBUG_RANDOM_SEED
-__class__
-__delattr__
-__dict__
-__dir__
-__doc__
-__enter__
-__eq__
-__exit__
-__format__
-__ge__
-__getattribute__
-__gt__
-__hash__
-__init__
-__init_subclass__
-__le__
-__lt__
-__module__
-__ne__
-__new__
-__reduce__
-__reduce_ex__
-__repr__
-__setattr__
-__sizeof__
-__str__
-__subclasshook__
-__weakref__
-_after_lazy_init
-_after_vehicle_done
-_get_action_space
-_get_observation_space
-_get_observations
-_get_reset_return
-_get_step_return
-_is_out_of_road
-_merge_extra_config
-_post_process_config
-_preprocess_actions
-_render_topdown
-_reset_global_seed
-_respawn_single_vehicle
-_respawn_vehicles
-_step_simulator
-_top_down_renderer
-_update_camera_after_finish
-_wrap_as_single_agent
-action_space
-agent_manager
-capture
-close
-config
-cost_function
-current_map
-current_seed
-current_track_vehicle
-default_config
-default_config_copy
-done_function
-dones
-engine
-env_num
---> episode_lengths
+    DEFAULT_AGENT
+    _DEBUG_RANDOM_SEED
+    __class__
+    __delattr__
+    __dict__
+    __dir__
+    __doc__
+    __enter__
+    __eq__
+    __exit__
+    __format__
+    __ge__
+    __getattribute__
+    __gt__
+    __hash__
+    __init__
+    __init_subclass__
+    __le__
+    __lt__
+    __module__
+    __ne__
+    __new__
+    __reduce__
+    __reduce_ex__
+    __repr__
+    __setattr__
+    __sizeof__
+    __str__
+    __subclasshook__
+    __weakref__
+    _after_lazy_init
+    _after_vehicle_done
+    _get_action_space
+    _get_observation_space
+    _get_observations
+    _get_reset_return
+    _get_step_return
+    _is_out_of_road
+    _merge_extra_config
+    _post_process_config
+    _preprocess_actions
+    _render_topdown
+    _reset_global_seed
+    _respawn_single_vehicle
+    _respawn_vehicles
+    _step_simulator
+    _top_down_renderer
+    _update_camera_after_finish
+    _wrap_as_single_agent
+    action_space
+    agent_manager
+    capture
+    close
+    config
+    cost_function
+    current_map
+    current_seed
+    current_track_vehicle
+    default_config
+    default_config_copy
+    done_function
+    dones
+    engine
+    env_num
+--> episode_lengths : <dict> each agent spawn's max steps
 --> episode_rewards
---> episode_steps
-for_each_vehicle
-force_close
-get_single_observation
-is_multi_agent
-lazy_init
-main_camera
-maps
-metadata
+--> episode_steps : <int> env's current epi step( += 1 when step() is called, [1,2,...,1000]) 
+    for_each_vehicle
+    force_close
+    get_single_observation
+    is_multi_agent
+    lazy_init
+    main_camera
+    maps
+    metadata
 --> num_agents
 --> observation_space
-observations
-render
-reset
-reward_function
-reward_range
-seed
-setup_engine
-spec
-start_seed
-step
-switch_to_third_person_view
-switch_to_top_down_view
-unwrapped
-vehicle
+    observations
+    render
+    reset
+    reward_function
+    reward_range
+    seed
+    setup_engine
+    spec
+    start_seed
+    step
+    switch_to_third_person_view
+    switch_to_top_down_view
+    unwrapped
+    vehicle
 --> vehicles
 

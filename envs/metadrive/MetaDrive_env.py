@@ -1,10 +1,10 @@
-# from .environment import MultiAgentEnv
-# from .scenarios import load
 import math, time
 import numpy as np
 from collections import defaultdict
 from gym import Wrapper
 from onpolicy.utils.utils import LogLevel, debug_print, debug_msg, pretty_print
+from onpolicy.utils.env_utils import get_metadrive_env_obs_shape, get_metadrive_env_action_shape
+from colorlog import logger
 
 from metadrive import (
     MultiAgentMetaDrive, MultiAgentTollgateEnv, MultiAgentBottleneckEnv, MultiAgentIntersectionEnv,
@@ -248,7 +248,7 @@ class MetaDriveEvalEnv(Wrapper):
 
         # Group 2.2: Episode reward (return)
         agent_reward_list = defaultdict(float)
-        for step in sorted(self.step_active_agents):
+        for step in sorted(self.step_active_agents): # sorted keys(steps:int) -> 0,1,2,...,999
             active_agents = self.step_active_agents[step]
             if step == self.EPISODE_END:
                 continue
@@ -257,6 +257,7 @@ class MetaDriveEvalEnv(Wrapper):
         ret["episode_reward_mean"] = np.mean(list(agent_reward_list.values()))
         ret["episode_reward_min"] = np.min(list(agent_reward_list.values()))
         ret["episode_reward_max"] = np.max(list(agent_reward_list.values()))
+        ret["episode_reward_sum"] = np.sum(list(agent_reward_list.values()))
 
         # Group 2.3: Episode cost
         agent_cost_list = defaultdict(float)
@@ -378,26 +379,16 @@ class MetaDriveEvalEnv(Wrapper):
             return self.unwrapped.render(text={k: "{:.3f}".format(v) for k, v in self.get_step_result().items()})
 
 
-
 def getMetaDriveEnv(args, rank, env_config=None):
     '''
-    Creates a MultiAgentEnv object as env. This can be used similar to a gym
-    environment by calling env.reset() and env.step().
-    Use env.render() to view the environment on the screen.
-
-    Input:
-        scenario_name   :   name of the scenario from ./scenarios/ to be Returns
-                            (without the .py extension)
-        benchmark       :   whether you want to produce benchmarking data
-                            (usually only done during evaluation)
+    Creates & return a MultiAgentEnv object as env.
 
     Some useful env properties (see environment.py):
         .observation_space  :   Returns the observation space for each agent
         .action_space       :   Returns the action space for each agent
         .n                  :   Returns the number of Agents
     '''
-
-    debug_print(">>> building MetaDriveEnv, seed:", rank, inline=True)
+    logger.info("building MetaDriveEnv, rank:", rank, inline=True)
 
     envs = dict(
         Roundabout=MultiAgentRoundaboutEnv,
@@ -413,23 +404,24 @@ def getMetaDriveEnv(args, rank, env_config=None):
     ''' set args '''
     METADRIVE_ENV_CONFIG = {
         "use_render": False,
-        "start_seed": args.seed + rank * 1000,
+        "start_seed": args.seed + rank * 1000, # * 1000
         "environment_num": 100,
         "num_agents": args.num_agents,
         "manual_control": False,
         "crash_done": True, # default True by env
+        "delay_done": 0, # default 25 by env
         "horizon": args.episode_length, # default 1000 by env
     }
     
     if env_config:
         METADRIVE_ENV_CONFIG.update(env_config)
     env = envs[ENV_NAME](METADRIVE_ENV_CONFIG)
-    setattr(env, "share_observation_space", env.observation_space)
+    setattr(env, "share_observation_space", env.observation_space) #TODO
     
     return MetaDriveEvalEnv(env)
 
 
-def detect_new_spawn(infos):
+def _detect_new_spawn(infos):
     flag = False
     for a in infos:
         if infos[a] == {}:
@@ -452,20 +444,21 @@ if __name__ == "__main__":
     env_config = {
         # "use_render": True if not args.pygame_render else False,
         "use_render": False,
-        "manual_control": True,
+        "manual_control": False,
         "crash_done": True,
         "agent_policy": ManualControllableIDMPolicy,
-        "num_agents": 16,
+        "num_agents": 4,
         "horizon": 1000, # default by env
-        "delay_done": 25
+        "delay_done": 1000
         # "allow_respawn": False
     }
 
     extra_args = dict(mode="top_down", film_size=(1000, 1000))
 
     env = getMetaDriveEnv(args, 0, env_config) 
-
+  
     ''' eval '''
+
     obs = env.reset()
     start = time.time()
     if env.current_track_vehicle:
@@ -474,86 +467,82 @@ if __name__ == "__main__":
     
     # relative_step = 2
     # relative_flag = False
-    all_agents = set(obs.keys())
+    # all_agents = set(obs.keys())
 
 
-    max_steps = 1000
-    for i in range(1, max_steps):
-        obs, rews, dones, infos = env.step({agent_id: [0, 0] for agent_id in env.vehicles.keys()})
+    episodes = 0
+    epi_mean_rews = []
+    epi_mean_length = []
+    max_steps = 10000
+    for i in range(0, max_steps):
+        oall_agentsall_agentsbs, rews, dones, infos = env.step({agent_id: [0, 1] for agent_id in env.vehicles.keys()})
 
-        # if relative_flag:
-        #     if detect_new_spawn(infos):
-        #         exit()
+        env.render(**extra_args)
+        time.sleep(0.02)
 
-
-        # if len(env.vehicles) != len(obs):
-        #     debug_msg(f">>> step {i}: env.vehicles{len(env.vehicles)} != {len(obs)} len(obs)")
-
-        #     print("diff:", env.vehicles.keys() ^ obs.keys())
-        #     # print(env.vehicles.keys() - obs.keys())
-        #     print("new crash:", obs.keys() - env.vehicles.keys() )
-        #     debug_print("len(obs)", len(obs), inline=True)
-        #     debug_print("len(infos)", len(infos), inline=True)
-
-        #     print()
-        #     for a in dones:
-        #         if dones[a]:
-        #             print("new done:", a)
-        #     for a in infos:
-        #         if infos[a] != {}:
-        #             if infos[a]['arrive_dest']:
-        #                 print(a, 'arrive_dest')
-        #             if infos[a]['crash']:
-        #                 print(a, 'crash')
-        #             if infos[a]['out_of_road']:
-        #                 print(a, 'out_of_road')
-        #         else:
-        #             print("new:", a)
-
-        #     relative_flag = True
-
-
-                    
-                
-        #     for a in infos:
-        #         if infos[a] != {} and infos[a]['crash'] == True:
-        #             relative_flag = True
-        #             # print(a, dones[a])
-        #             # print(obs.keys())
-
-        # if relative_flag:
-        #     relative_step -= 1
-        # if relative_step < 0:
-        #     pass
-        # if relative_step == 0 or relative_step == 1 :
-        #     print(obs.keys())
-        #     print(dones.keys())
-        #     print(rews.keys())
-        #     print(infos.keys())
-            
-        all_agents |= set(obs.keys())
-        
-        step_stat = env.get_step_result()
-        step_stat = {k: "{:.3f}".format(v) for k, v in step_stat.items()}
-        # print(step_stat)
 
         if (i + 1) % 100 == 0:
             print(
                 f"Finish {i+1}/{max_steps} simulation steps. Time elapse: {(time.time() - start):.4f}. \
                     Average FPS: {(i + 1) / (time.time() - start):.4f}")
 
-        env.render(**extra_args)
-
+ 
         if dones["__all__"]:
-            print(f" >>> reset() @ step {i}\n")
+            debug_print(" >>> reset() @ step i+1", i+1, inline=True)
+            debug_print("     env step ", env.episode_steps, inline=True)
+            
+            res = env.get_episode_result()
+            epi_mean_rews.append(res['episode_reward_mean'])
+            epi_mean_length.append(res['episode_length_mean'])
+
+            debug_print("episode_reward_mean", res['episode_reward_mean'], inline=True)
+            debug_print("episode_length_mean", res['episode_length_mean'], inline=True)
+            episodes += 1
             env.reset()
             # break
 
-    debug_print("all_agents", all_agents)
-    debug_print("all_agents", len(all_agents))
+    debug_msg(f"epi_mean_rews {np.mean(epi_mean_rews)} / {episodes} episodes")
+    debug_msg(f"epi_length_rews {np.mean(epi_mean_length)} / {episodes} episodes")
+    # debug_print("all_agents", len(all_agents))
 
-    res = env.get_episode_result()
+    # res = env.get_episode_result()
     env.close()
     print('\n')
-    print(pretty_print(res))
+    # print(pretty_print(res))
 
+
+""" episode_result dict:
+
+-->   crash_rate: 0.5252525252525253
+      energy_step_mean_episode_max: 0.03562079709131
+      energy_step_mean_episode_mean: 0.026447600511791205
+      energy_step_mean_episode_min: 0.0
+      episode_cost_max: 1.0
+      episode_cost_mean: 0.45217391304347826
+      episode_cost_min: 0.0
+      episode_cost_sum: 52.0
+-->   episode_length_mean: 123.80869565217391
+      episode_reward_max: 159.29317931327068
+-->   episode_reward_mean: 75.10874539724108  
+      episode_reward_min: 3.4851252684743126
+~~>   episode_reward_sum   # <~~ add
+      num_agents_crash: 52
+      num_agents_failed_per_300_steps: 15.615615615615615
+      num_agents_out: 17
+      num_agents_success: 30
+      num_agents_success_per_300_steps: 9.00900900900901
+-->   num_agents_total: 99 
+      num_agents_total_per_300_steps: 29.72972972972973
+      num_neighbours_mean_episode_max: 2.625
+      num_neighbours_mean_episode_mean: 1.4821634610850296
+-->   out_rate: 0.1717171717171717
+      success_episode_length_mean: 129.91919191919192
+-->   success_rate: 0.30303030303030304
+      svo_estimate_deg_max: 76.64344350211869
+      svo_estimate_deg_mean: 45.67520000243315
+      svo_estimate_deg_min: 22.99266581453143
+      svo_reward: 124.82216134715392
+      velocity_step_mean_episode_max: 29.41912722558177
+      velocity_step_mean_episode_mean: 22.494677042339884
+      velocity_step_mean_episode_min: 0.0
+"""

@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from onpolicy.utils.util import get_shape_from_obs_space, get_shape_from_act_space
+from onpolicy.utils.env_utils import get_space_width, get_space_shape
 
 
 def _flatten(T, N, x):
@@ -33,8 +33,10 @@ class SharedReplayBuffer(object):
         self._use_valuenorm = args.use_valuenorm
         self._use_proper_time_limits = args.use_proper_time_limits
 
-        obs_shape = get_shape_from_obs_space(obs_space)
-        share_obs_shape = get_shape_from_obs_space(cent_obs_space)
+        # obs_shape = get_shape_from_obs_space(obs_space)
+        # share_obs_shape = get_shape_from_obs_space(cent_obs_space)
+        obs_shape = get_space_shape(obs_space)
+        share_obs_shape = get_space_shape(cent_obs_space)
 
         if type(obs_shape[-1]) == list:
             obs_shape = obs_shape[:1]
@@ -42,8 +44,7 @@ class SharedReplayBuffer(object):
         if type(share_obs_shape[-1]) == list:
             share_obs_shape = share_obs_shape[:1]
 
-        self.share_obs = np.zeros((self.episode_length + 1, self.n_rollout_threads, num_agents, *share_obs_shape),
-                                  dtype=np.float32)
+        self.share_obs = np.zeros((self.episode_length + 1, self.n_rollout_threads, num_agents, *share_obs_shape), dtype=np.float32)
         self.obs = np.zeros((self.episode_length + 1, self.n_rollout_threads, num_agents, *obs_shape), dtype=np.float32)
 
         self.rnn_states = np.zeros(
@@ -51,24 +52,19 @@ class SharedReplayBuffer(object):
             dtype=np.float32)
         self.rnn_states_critic = np.zeros_like(self.rnn_states)
 
-        self.value_preds = np.zeros(
-            (self.episode_length + 1, self.n_rollout_threads, num_agents, 1), dtype=np.float32)
+        self.value_preds = np.zeros((self.episode_length + 1, self.n_rollout_threads, num_agents, 1), dtype=np.float32)
         self.returns = np.zeros_like(self.value_preds)
 
         if act_space.__class__.__name__ == 'Discrete':
-            self.available_actions = np.ones((self.episode_length + 1, self.n_rollout_threads, num_agents, act_space.n),
-                                             dtype=np.float32)
+            self.available_actions = np.ones((self.episode_length + 1, self.n_rollout_threads, num_agents, act_space.n), dtype=np.float32)
         else:
             self.available_actions = None
 
-        act_shape = get_shape_from_act_space(act_space)
+        act_shape = get_space_width(act_space)
 
-        self.actions = np.zeros(
-            (self.episode_length, self.n_rollout_threads, num_agents, act_shape), dtype=np.float32)
-        self.action_log_probs = np.zeros(
-            (self.episode_length, self.n_rollout_threads, num_agents, act_shape), dtype=np.float32)
-        self.rewards = np.zeros(
-            (self.episode_length, self.n_rollout_threads, num_agents, 1), dtype=np.float32)
+        self.actions = np.zeros((self.episode_length, self.n_rollout_threads, num_agents, act_shape), dtype=np.float32)
+        self.action_log_probs = np.zeros((self.episode_length, self.n_rollout_threads, num_agents, act_shape), dtype=np.float32)
+        self.rewards = np.zeros((self.episode_length, self.n_rollout_threads, num_agents, 1), dtype=np.float32)
 
         self.masks = np.ones((self.episode_length + 1, self.n_rollout_threads, num_agents, 1), dtype=np.float32)
         self.bad_masks = np.ones_like(self.masks)
@@ -106,7 +102,7 @@ class SharedReplayBuffer(object):
             self.bad_masks[self.step + 1] = bad_masks.copy()
         if active_masks is not None:
             self.active_masks[self.step + 1] = active_masks.copy()
-        if available_actions is not None:
+        if available_actions is not None and self.available_actions is not None:
             self.available_actions[self.step + 1] = available_actions.copy()
 
         self.step = (self.step + 1) % self.episode_length
@@ -220,7 +216,7 @@ class SharedReplayBuffer(object):
                         self.returns[step] = gae + self.value_preds[step]
             else:
                 self.returns[-1] = next_value
-                for step in reversed(range(self.rewards.shape[0])):
+                for step in reversed(range(self.rewards.shape[0])): # reversed step num: [999, 998, ..., 0]
                     self.returns[step] = self.returns[step + 1] * self.gamma * self.masks[step + 1] + self.rewards[step]
 
     def feed_forward_generator(self, advantages, num_mini_batch=None, mini_batch_size=None):
@@ -246,6 +242,7 @@ class SharedReplayBuffer(object):
         rand = torch.randperm(batch_size).numpy()
         sampler = [rand[i * mini_batch_size:(i + 1) * mini_batch_size] for i in range(num_mini_batch)]
 
+        # reshape(-1, 1): 对维度从后依次往前推断，即对每一步的每个环境的每个车辆的比如奖励依次排列
         share_obs = self.share_obs[:-1].reshape(-1, *self.share_obs.shape[3:])
         obs = self.obs[:-1].reshape(-1, *self.obs.shape[3:])
         rnn_states = self.rnn_states[:-1].reshape(-1, *self.rnn_states.shape[3:])

@@ -8,26 +8,25 @@ import numpy as np
 from pathlib import Path
 import torch
 import torch.backends.cudnn
+from colorlog import logger
 from onpolicy.config import get_config
 # from onpolicy.envs.mpe.MPE_env import MPEEnv
 from onpolicy.envs.metadrive.MetaDrive_env import getMetaDriveEnv
-from onpolicy.envs.metadrive_env_wrappers import SubprocVecEnv, DummyVecEnv, ShareVecEnv
+from onpolicy.envs.metadrive_vec_env import SubprocVecEnv, DummyVecEnv, ShareVecEnv
 from onpolicy.utils.utils import LogLevel, debug_msg, debug_print
 
 """Train script for MetaDrive."""
 
 def make_train_env(all_args) -> ShareVecEnv:
+
     def get_env_fn(rank):
         def init_env():
-            if "MetaDrive" in all_args.env_name:
-                env = getMetaDriveEnv(all_args, rank)
-            else:
-                print("Can not support the " + all_args.env_name + "environment.")
-                raise NotImplementedError
-            return env
+            assert "MetaDrive" in all_args.env_name, (logger.error("Can not support the " + all_args.env_name + " environment.")) 
+            return getMetaDriveEnv(all_args, rank)
         return init_env
+
     if all_args.n_rollout_threads == 1:
-        return  SubprocVecEnv([get_env_fn(0)])
+        return SubprocVecEnv([get_env_fn(0)])
     else:
         return SubprocVecEnv([get_env_fn(i) for i in range(all_args.n_rollout_threads)])
 
@@ -49,15 +48,7 @@ def make_eval_env(all_args) -> ShareVecEnv:
 
 
 def parse_args(args, parser):
-    parser.add_argument('--scenario_name', type=str,
-                        default='simple_spread', help="Which scenario to run on")
-    parser.add_argument("--num_landmarks", type=int, default=3)
-    parser.add_argument('--num_agents', type=int,
-                        default=2, help="number of players")
-
-    all_args = parser.parse_known_args(args)[0]
-
-    return all_args
+    return  parser.parse_known_args(args)[0]
 
 
 def main(args):
@@ -86,9 +77,9 @@ def main(args):
             torch.backends.cudnn.benchmark = False
             torch.backends.cudnn.deterministic = True
     else:
-        debug_msg("choose to use cpu...", level=LogLevel.SUCCESS)
+        debug_msg("choose to use cpu...", level=LogLevel.INFO)
         device = torch.device("cpu")
-        torch.set_num_threads(all_args.n_training_threads)
+    torch.set_num_threads(all_args.n_training_threads)
 
     # run dir
     run_dir = Path(os.path.split(os.path.dirname(os.path.abspath(__file__)))[0] + "/results") \
@@ -97,9 +88,10 @@ def main(args):
         os.makedirs(str(run_dir))
 
     # wandb
+    # desc = '_' + str(all_args.debug_test) if all_args.debug_test else ""
     if all_args.use_wandb:
         run = wandb.init(config=all_args, #type: ignore
-                         project=all_args.env_name,
+                         project=all_args.env_name+all_args.scenario_name,
                          entity=all_args.user_name,
                          notes=socket.gethostname(),
                          name=str(all_args.algorithm_name) + "_" + \
@@ -160,10 +152,10 @@ def main(args):
     # post process
     envs.close()
     if all_args.use_eval and eval_envs is not envs:
-        eval_envs.close()
+        eval_envs.close() #type: ignore
 
     if all_args.use_wandb:
-        run.finish()
+        run.finish() #type: ignore
     else:
         runner.writter.export_scalars_to_json(str(runner.log_dir + '/summary.json'))
         runner.writter.close()

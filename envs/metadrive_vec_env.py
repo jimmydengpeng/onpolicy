@@ -7,7 +7,7 @@ from multiprocessing import Process, Pipe
 from abc import ABC, abstractmethod
 from onpolicy.utils.util import tile_images
 from onpolicy.utils.utils import LogLevel, debug_msg, debug_print
-from onpolicy.envs.env_utils import dict_to_list, get_space_shape, get_metadrive_action_shape, get_metadrive_obs_shape
+from onpolicy.utils.env_utils import dict_to_list, get_space_width, get_num_agents, get_metadrive_env_obs_shape
 
 
 class CloudpickleWrapper(object):
@@ -45,18 +45,22 @@ class ShareVecEnv(ABC):
         self.num_envs = num_envs
 
         ''' NOTE: Special process for MetaDriveEnv: every space is a list of every agent's space ''' 
-        import gym.spaces.dict
-        if isinstance(observation_space, gym.spaces.dict.Dict) \
-            and isinstance(share_observation_space, gym.spaces.dict.Dict) \
-            and isinstance(action_space, gym.spaces.dict.Dict):
-            self.observation_space = dict_to_list(observation_space)
-            self.share_observation_space = dict_to_list(share_observation_space)
-            self.action_space = dict_to_list(action_space)
-        else: # for [list] type of spaces
-            self.observation_space = observation_space
-            self.share_observation_space = share_observation_space
-            self.action_space = action_space
-        self.num_agents = get_space_shape(self.action_space[0])
+        # import gym.spaces.dict
+        # if isinstance(observation_space, gym.spaces.dict.Dict) \
+        #     and isinstance(share_observation_space, gym.spaces.dict.Dict) \
+        #     and isinstance(action_space, gym.spaces.dict.Dict):
+        #     self.observation_space = dict_to_list(observation_space) # list of each agent's space [sp, ...]
+        #     self.share_observation_space = dict_to_list(share_observation_space)
+        #     self.action_space = dict_to_list(action_space)
+        # else: # for [list] type of spaces
+        #     self.observation_space = observation_space
+        #     self.share_observation_space = share_observation_space
+        #     self.action_space = action_space
+        self.observation_space = observation_space
+        self.share_observation_space = share_observation_space
+        self.action_space = action_space
+        # self.num_agents = get_space_shape(self.action_space[0])
+        self.num_agents = get_num_agents(observation_space)
 
     @abstractmethod
     def reset(self):
@@ -155,13 +159,14 @@ def worker(remote, parent_remote, env_fn_wrapper):
     horizon = env.config['horizon'] 
     def get_template_o_r_d(env):
         max_agents = env.num_agents
-        obs_shape = get_metadrive_obs_shape(env)
+        obs_shape = get_metadrive_env_obs_shape(env) # 91 by default for Multi-Agent MetaDrive Env
         obs = np.zeros((max_agents, obs_shape), dtype=np.float32)
         rews = np.zeros((max_agents, 1), dtype=np.float32)
         dones = np.ones((max_agents), dtype=bool)
         return obs, rews, dones
     
     empty_o_r_d = get_template_o_r_d(env)
+    info_ret = {}
     # debug_print("empty_o_r_d ", empty_o_r_d )
 
 
@@ -229,32 +234,52 @@ def worker(remote, parent_remote, env_fn_wrapper):
                 # debug_print("new_dies", new_dies)
                 # debug_print("queue", queue)
                 # debug_print("all_agents_idx", all_agents_idx)
-                assert len(new_dies) >= len(new_spawns)
 
-                for a_spa in new_spawns:
-                    i =  all_agents_idx[new_dies.pop(0)]
-                    all_agents_idx[a_spa] = i
-                    obs[i] = obs_dict[a_spa]
-                for a_die in new_dies:
-                    queue.append(all_agents_idx[a_die])
+                if len(new_dies) >= len(new_spawns):
+
+                    for a_spa in new_spawns:
+                        i =  all_agents_idx[new_dies.pop(0)]
+                        all_agents_idx[a_spa] = i
+                        obs[i] = obs_dict[a_spa]
+                    for a_die in new_dies:
+                        queue.append(all_agents_idx[a_die])
             
+            # if env.episode_steps > 999: 
+            #     if env.get_episode_result() == {}:
+            #         debug_print("in worker: env.get_episode_result() == \{\}", env.episode_steps, level=LogLevel.ERROR)
+
+            # early done #DEBUG
+            if dones_dict["__all__"] and env.episode_steps < horizon:
+                debug_msg("early done!!!", level=LogLevel.ERROR)
+                debug_print("  env.episode_steps:", env.episode_steps, level=LogLevel.ERROR, inline=True)
+                debug_print("  env total agents:", len(env.episode_rewards), level=LogLevel.ERROR, inline=True)
+                debug_print("  env cur agents:", len(dones_dict)-1, level=LogLevel.ERROR, inline=True)
+
             # at env to reset()
-            if dones_dict["__all__"] or env.episode_steps == horizon:
-                ob = env.reset()
+            # if dones_dict["__all__"] and env.episode_steps == horizon:
+            if dones_dict["__all__"]:
+                # return infos in env's last step
+                info_ret = env.get_episode_result()
+                # if env.episode_steps < horizon:
+                #     debug_print("env.episode_steps < horizon: info_ret", info_ret, level=LogLevel.INFO)
+
+                if info_ret == {}:
+                    debug_msg("in worker: info_ret == {}")
+
+                obs_dict = env.reset()
                 all_agents_idx = {}
                 queue = []
-                for i, k in enumerate(ob.keys()):
+                for i, k in enumerate(obs_dict.keys()):
                     all_agents_idx[k] = i
 
-            #         ob = env.reset()
-            # else:
-            #     if np.all(done):
-            #         ob = env.reset()
-            # debug_print("reward", reward)
-            # debug_print("done", done)
-            # debug_print("info", info)
-            remote.send((obs, rews, dones, env.episode_rewards)) 
-            #                                         ^--> only rew of each agent (dict)
+                for a in obs_dict:
+                    if a in all_agents_idx:
+                        i = all_agents_idx[a]
+                        obs[i] = obs_dict[a]
+
+
+            remote.send((obs, rews, dones, info_ret)) 
+            #                                  ^--> only not {} at last env step
 
         elif cmd == 'reset':
             # debug_print(">>> reset() env.episode_steps", env.episode_steps, level=LogLevel.ERROR, inline=True)
@@ -266,11 +291,8 @@ def worker(remote, parent_remote, env_fn_wrapper):
             remote.send((ob))
 
         elif cmd == 'render':
-            if data == "rgb_array":
-                fr = env.render(mode=data) #FIXME
-                remote.send(fr)
-            elif data == "human":
-                env.render(mode=data)
+            env.render(**data) #FIXME
+
         elif cmd == 'reset_task':
             ob = env.reset_task()
             remote.send(ob)
@@ -279,6 +301,7 @@ def worker(remote, parent_remote, env_fn_wrapper):
             remote.close()
             break
         elif cmd == 'get_spaces':
+            # 直接返回 MetaDrive 的原始状态和动作空间，即 'gym.spaces.dict.Dict'
             remote.send((env.observation_space, env.share_observation_space, env.action_space))
         else:
             raise NotImplementedError
@@ -391,9 +414,8 @@ class SubprocVecEnv(ShareVecEnv):
         # debug_print("obs", len(obs))
         # debug_print("obs 0 ", len(obs[0]))
         # debug_print("obs 1", len(obs[1]))
-        
         return np.stack(obs), np.stack(rews), np.stack(dones), infos
-        #                                                        ^--> list of each env's info return
+        #                                                        ^--> tuple of each env's info return
 
     def reset(self):
         for remote in self.remotes:
@@ -419,12 +441,9 @@ class SubprocVecEnv(ShareVecEnv):
             p.join()
         self.closed = True
 
-    def render(self, mode="rgb_array"):
+    def render(self, **kwargs):
         for remote in self.remotes:
-            remote.send(('render', mode))
-        if mode == "rgb_array":   
-            frame = [dict_to_list(remote.recv()) for remote in self.remotes]
-            return np.stack(frame) 
+            remote.send(('render', kwargs))
 
 
 def shareworker(remote, parent_remote, env_fn_wrapper):
@@ -497,6 +516,7 @@ class ShareSubprocVecEnv(ShareVecEnv):
 
     def step_wait(self):
         results = [remote.recv() for remote in self.remotes]
+        
         self.waiting = False
         obs, share_obs, rews, dones, infos, available_actions = zip(*results)
         return np.stack(obs), np.stack(share_obs), np.stack(rews), np.stack(dones), infos, np.stack(available_actions)

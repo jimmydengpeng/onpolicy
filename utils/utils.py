@@ -214,7 +214,7 @@ def sec2hms(time_in_sec):
         s = remainder % 60
         return get_h(h) + get_m(m) + get_s(s)
     
-def time_str(s):
+def time_str(s, simple=False):
     """
     Convert seconds to a nicer string showing days, hours, minutes and seconds
     """
@@ -222,14 +222,24 @@ def time_str(s):
     hours, remainder = divmod(remainder, 60 * 60)
     minutes, seconds = divmod(remainder, 60)
     string = ""
-    if days > 0:
-        string += f"{int(days):d} days, "
-    if hours > 0:
-        string += f"{int(hours):d} hours, "
-    if minutes > 0:
-        string += f"{int(minutes):d} minutes, "
-    string += f"{int(seconds):d} seconds"
-    return string
+    if not simple:
+        if days > 0:
+            string += f"{int(days):d} days, "
+        if hours > 0:
+            string += f"{int(hours):d} hours, "
+        if minutes > 0:
+            string += f"{int(minutes):d} minutes, "
+        string += f"{int(seconds):d} seconds"
+        return string
+    else:
+        if days > 0:
+            string += f"{int(days):d}d"
+        if hours > 0:
+            string += f"{int(hours):d}:"
+        if minutes > 0:
+            string += f"{int(minutes):02d}:"
+        string += f"{int(seconds):02d}s"
+        return string
 
 
 def test_debug_log_functions():
