@@ -9,6 +9,7 @@ import wandb
 import imageio
 from onpolicy.utils.utils import LogLevel, debug_msg, debug_print, time_str
 from onpolicy.utils.env_utils import get_single_agent_space
+from colorlog import logger
 
 def _t2n(x):
     return x.detach().cpu().numpy()
@@ -51,8 +52,10 @@ class MetaDriveRunner(Runner):
                 # insert data into buffer
                 self.insert(data)
 
+
             # compute return and update network
             self.compute()
+
             train_infos = self.train()
             
             # post process
@@ -140,7 +143,7 @@ class MetaDriveRunner(Runner):
     def warmup(self):
         # reset env
         obs = self.envs.reset() # obs.shape: (n_rollout_threads, num_agents, obs_dim)
-        debug_print("reset obs shape", obs.shape, inline=True)
+        # debug_print("reset obs shape", obs.shape, inline=True)
         # replay buffer
         if self.use_centralized_V:
             share_obs = obs.reshape(self.n_rollout_threads, -1) # shape: (n_rollout_threads, num_agents * obs_dim)
@@ -178,7 +181,7 @@ class MetaDriveRunner(Runner):
         rnn_states[dones == True] = np.zeros(((dones == True).sum(), self.recurrent_N, self.hidden_size), dtype=np.float32)
         rnn_states_critic[dones == True] = np.zeros(((dones == True).sum(), *self.buffer.rnn_states_critic.shape[3:]), dtype=np.float32)
         masks = np.ones((self.n_rollout_threads, self.num_agents, 1), dtype=np.float32)
-        masks[dones == True] = np.zeros(((dones == True).sum(), 1), dtype=np.float32)
+        masks[dones == True] = np.zeros(((dones == True).sum(), 1), dtype=np.float32) # filter & reassign value: 将 dones 里为 True 的位置对应在mask里的位置上的元素反转成0，注意mask的维度比dones多1
 
         if self.use_centralized_V:
             share_obs = obs.reshape(self.n_rollout_threads, -1)
@@ -323,7 +326,8 @@ class MetaDriveRunner(Runner):
                 actions = np.array(np.split(_t2n(action), self.n_render_rollout_threads))
                 rnn_states = np.array(np.split(_t2n(rnn_states), self.n_render_rollout_threads))
 
-                assert self.envs.action_space[0].__class__.__name__ == 'Box'
+                assert get_single_agent_space(self.envs.action_space).__class__.__name__ == 'Box'
+
                 actions_env = actions
 
                 # Obser reward and next obs
@@ -336,10 +340,12 @@ class MetaDriveRunner(Runner):
             info = infos[0]
             succ_rates.append(info['success_rate'])
             crash_rates.append(info['crash_rate'])
-            succ_rates.append(info['out_rate'])
+            out_rates.append(info['out_rate'])
         
-        debug_msg(f'average succ rate in {self.all_args.render_episodes} episodes:  {np.mean(succ_rates)*100:.2f}%', LogLevel.SUCCESS)
-        debug_msg(f'average crash rate in {self.all_args.render_episodes} episodes: {np.mean(crash_rates)*100:.2f}%', LogLevel.ERROR)
-        debug_msg(f'average out rate in {self.all_args.render_episodes} episodes:   {np.mean(out_rates)*100:.2f}%', LogLevel.WARNING)
+        print('')
+        debug_msg(f'average succ rate in {self.all_args.render_episodes} episodes:   {np.mean(succ_rates)*100:.2f}%', LogLevel.SUCCESS)
+        debug_msg(f'average crash rate in {self.all_args.render_episodes} episodes:    {np.mean(crash_rates)*100:.2f}%', LogLevel.ERROR)
+        debug_msg(f'average out rate in {self.all_args.render_episodes} episodes:    {np.mean(out_rates)*100:.2f}%', LogLevel.WARNING)
+        print('')
 
             # print("average episode rewards is: " + str(np.mean(np.sum(np.array(episode_rewards), axis=0))))

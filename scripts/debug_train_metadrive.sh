@@ -5,11 +5,11 @@ env="MetaDrive"
 # scenario="Bottleneck"
 # scenario="Roundabout"
 scenario="Intersection"
-num_agents=8
+num_agents=4
 # algo="rmappo"
 algo="mappo" # set --use_recurrent_policy (will be False, default by True)
-num_torch_threads=4
-num_rollout_env=5
+num_torch_threads=8
+num_rollout_env=10
 # num_rollout_env=30
 # num_env_steps=100000
 num_env_steps=10000000
@@ -18,15 +18,8 @@ delay_done=25
 log_interval=1
 seed_max=5
 horizon=1000
-desc="delay=${delay_done}&envs=${num_rollout_env}"
+desc="delay=${delay_done}&small_batch_size"
 # SHARE=true # <~~ Change Here!
-TEST_MODE=false
-if ${TEST_MODE}
-then
-    wandb_mode='disabled'
-else
-    wandb_mode='online'
-fi
 
 exp="share_${num_agents}a${num_torch_threads}t${num_rollout_env}p"
 echo "== Start training =="
@@ -57,8 +50,7 @@ do
     --critic_lr 7e-4 \
     --delay_done ${delay_done} \
     --user_name "jimmydeng" \
-    --wandb_mode ${wandb_mode}\
     --use_centralized_V \
-    --use_recurrent_policy
+    --use_recurrent_policy \
+    --use_wandb
 done
-    # --use_wandb

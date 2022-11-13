@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 from onpolicy.utils.env_utils import get_space_width, get_space_shape
+from colorlog import logger
 
 
 def _flatten(T, N, x):
@@ -137,7 +138,7 @@ class SharedReplayBuffer(object):
             self.bad_masks[self.step + 1] = bad_masks.copy()
         if active_masks is not None:
             self.active_masks[self.step] = active_masks.copy()
-        if available_actions is not None:
+        if available_actions is not None and self.available_actions is not None:
             self.available_actions[self.step] = available_actions.copy()
 
         self.step = (self.step + 1) % self.episode_length
@@ -239,6 +240,7 @@ class SharedReplayBuffer(object):
                           num_mini_batch))
             mini_batch_size = batch_size // num_mini_batch
 
+        # logger.debug('mini_batch_size:', mini_batch_size, True)
         rand = torch.randperm(batch_size).numpy()
         sampler = [rand[i * mini_batch_size:(i + 1) * mini_batch_size] for i in range(num_mini_batch)]
 
@@ -489,3 +491,24 @@ class SharedReplayBuffer(object):
             yield share_obs_batch, obs_batch, rnn_states_batch, rnn_states_critic_batch, actions_batch,\
                   value_preds_batch, return_batch, masks_batch, active_masks_batch, old_action_log_probs_batch,\
                   adv_targ, available_actions_batch
+
+
+    def _debug(self):
+        from colorlog import logger
+        for s in range(len(self.masks)-1):
+            if self.masks[s][0][0][0] == 0:
+                logger.debug(f'in step {s}:')
+                logger.debug('masks:', self.masks[s][0][0][0], inline=True)
+                logger.debug(f'step {s-1} rewards:', self.rewards[s-1][0][0][0], True)
+                logger.debug(f'step {s-1} returns:', self.returns[s-1][0][0][0], True)
+                logger.debug(f'step {s} rewards:', self.rewards[s][0][0][0], True)
+                logger.debug(f'step {s} returns:', self.returns[s][0][0][0], True)
+
+        logger.log('-'*20)
+        s = len(self.masks) - 1
+        logger.debug('in step -1:')
+        logger.debug('masks:', self.masks[-1][0][0][0], inline=True)
+        logger.debug(f'step {s-1} rewards:', self.rewards[s-1][0][0][0], True)
+        logger.debug(f'step {s-1} returns:', self.returns[s-1][0][0][0], True)
+        logger.debug(f'step {s} returns:', self.returns[s][0][0][0], True)
+        logger.success('end')

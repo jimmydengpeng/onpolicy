@@ -5,20 +5,20 @@ import wandb
 import torch
 from onpolicy.config import get_config
 from onpolicy.envs.metadrive.MetaDrive_env import getMetaDriveEnv
-from envs.metadrive_vec_env import SubprocVecEnv, DummyVecEnv, ShareVecEnv
+from onpolicy.envs.metadrive_vec_env import SubprocVecEnv, DummyVecEnv, ShareVecEnv
 from onpolicy.utils.utils import LogLevel, debug_msg, debug_print
+from colorlog import logger
 
 
 def make_render_env(all_args) -> ShareVecEnv:
+    env_config = {}
+    env_config['delay_done'] = all_args.delay_done
     def get_env_fn(rank):
         def init_env():
-            if "MetaDrive" in all_args.env_name:
-                env = getMetaDriveEnv(all_args, rank)
-            else:
-                print("Can not support the " + all_args.env_name + "environment.")
-                raise NotImplementedError
-            return env
+            assert "MetaDrive" in all_args.env_name, (logger.error("Can not support the " + all_args.env_name + " environment.")) 
+            return getMetaDriveEnv(all_args, rank, env_config)
         return init_env
+
     if all_args.n_render_rollout_threads == 1:
         return  SubprocVecEnv([get_env_fn(0)])
     else:
@@ -76,7 +76,7 @@ def main(args):
     else:
         raise NotImplementedError
 
-    exit()
+    # exit()
     # env init
     envs = make_render_env(all_args)
     eval_envs = None
@@ -98,9 +98,12 @@ def main(args):
     else:
         from onpolicy.runner.separated.metadrive_runner import MetaDriveRunner as Runner
 
+    logger.debug('a')
     runner = Runner(config)
+    logger.debug('b')
     print(runner.trainer.policy)
     runner.render()
+    logger.debug('c')
 
 
 

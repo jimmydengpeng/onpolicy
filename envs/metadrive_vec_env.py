@@ -249,11 +249,11 @@ def worker(remote, parent_remote, env_fn_wrapper):
             #         debug_print("in worker: env.get_episode_result() == \{\}", env.episode_steps, level=LogLevel.ERROR)
 
             # early done #DEBUG
-            if dones_dict["__all__"] and env.episode_steps < horizon:
-                debug_msg("early done!!!", level=LogLevel.ERROR)
-                debug_print("  env.episode_steps:", env.episode_steps, level=LogLevel.ERROR, inline=True)
-                debug_print("  env total agents:", len(env.episode_rewards), level=LogLevel.ERROR, inline=True)
-                debug_print("  env cur agents:", len(dones_dict)-1, level=LogLevel.ERROR, inline=True)
+            # if dones_dict["__all__"] and env.episode_steps < horizon:
+            #     debug_msg("early done!!!", level=LogLevel.ERROR)
+            #     debug_print("  env.episode_steps:", env.episode_steps, level=LogLevel.ERROR, inline=True)
+            #     debug_print("  env total agents:", len(env.episode_rewards), level=LogLevel.ERROR, inline=True)
+            #     debug_print("  env cur agents:", len(dones_dict)-1, level=LogLevel.ERROR, inline=True)
 
             # at env to reset()
             # if dones_dict["__all__"] and env.episode_steps == horizon:

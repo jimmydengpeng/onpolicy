@@ -1,9 +1,9 @@
 #!/bin/sh
 
 # env="MetaDriveBottleneck"
-env="MetaDriveIntersection"
+# env="MetaDriveIntersection"
 # env="MetaDriveRoundaboutEval"
-# env="MetaDrive"
+env="MetaDrive"
 # scenario="Bottleneck"
 # scenario="Roundabout"
 scenario="Intersection"
@@ -20,7 +20,8 @@ horizon=1000
 # actor_dir="latest-run"
 # actor_dir="run-20221031_012011-30xyy89r"
 # actor_dir="run-20221031_101306-2wkz9dlh"
-actor_dir="run-20221029_024422-b0l6gtb8"
+# actor_dir="run-20221029_024422-b0l6gtb8"
+actor_dir="run-20221107_202404-y4oxmi5b" # delay=50 
 # actor_dir="run-20221029_205940-31601k7w"
 seed=3
 
@@ -39,4 +40,5 @@ exp="share_${num_agents}a${num_torch_threads}t${num_rollout_env}p"
     --actor_dir ${actor_dir} \
     --use_ReLU \
     --user_name "jimmydeng" \
+    --delay_done 50 \
     --use_recurrent_policy

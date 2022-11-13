@@ -18,11 +18,12 @@ from onpolicy.utils.utils import LogLevel, debug_msg, debug_print
 """Train script for MetaDrive."""
 
 def make_train_env(all_args) -> ShareVecEnv:
-
+    env_config = {}
+    env_config['delay_done'] = all_args.delay_done
     def get_env_fn(rank):
         def init_env():
             assert "MetaDrive" in all_args.env_name, (logger.error("Can not support the " + all_args.env_name + " environment.")) 
-            return getMetaDriveEnv(all_args, rank)
+            return getMetaDriveEnv(all_args, rank, env_config)
         return init_env
 
     if all_args.n_rollout_threads == 1:
@@ -82,8 +83,10 @@ def main(args):
     torch.set_num_threads(all_args.n_training_threads)
 
     # run dir
+    # TODO : folder by desc
     run_dir = Path(os.path.split(os.path.dirname(os.path.abspath(__file__)))[0] + "/results") \
                 / all_args.env_name / all_args.algorithm_name / all_args.experiment_name
+                # / all_args.env_name+all_args.scenario_name / all_args.algorithm_name / all_args.experiment_name
     if not run_dir.exists():
         os.makedirs(str(run_dir))
 
@@ -97,9 +100,10 @@ def main(args):
                          name=str(all_args.algorithm_name) + "_" + \
                               str(all_args.experiment_name) + \
                               "_seed" + str(all_args.seed),
-                         group=all_args.scenario_name,
+                         group=all_args.debug_test, #TODO
                          dir=str(run_dir),
                          job_type="training",
+                         mode=all_args.wandb_mode,
                          reinit=True)
     else:
         if not run_dir.exists():

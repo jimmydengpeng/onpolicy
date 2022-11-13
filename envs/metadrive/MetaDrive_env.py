@@ -73,7 +73,8 @@ class DistanceMap:
 
 
 class MetaDriveEvalEnv(Wrapper):
-    """ Providing evaluating info across one episode for every agent spawn 
+    """ Providing evaluating info across one episode for every agent spawn:
+        (Note that one episode maybe less than the max length.)
         1. Total rewards of all agents
         2. Average reward
         3. Episodic success rate
@@ -415,6 +416,7 @@ def getMetaDriveEnv(args, rank, env_config=None):
     
     if env_config:
         METADRIVE_ENV_CONFIG.update(env_config)
+        logger.info("building MetaDriveEnv, delay_done:",METADRIVE_ENV_CONFIG['delay_done'], inline=True)
     env = envs[ENV_NAME](METADRIVE_ENV_CONFIG)
     setattr(env, "share_observation_space", env.observation_space) #TODO
     

@@ -24,12 +24,16 @@ def get_config():
     parser.add_argument("--num_env_steps",              type=int, default=10e6, help='Number of environment steps to train (default: 10e6)')
     parser.add_argument("--user_name",                  type=str, default='marl',help="[for wandb usage], to specify user's name for simply collecting training data.")
     parser.add_argument("--use_wandb",                  action='store_false', default=True, help="[for wandb usage], by default True, will log date to wandb server. or else will use tensorboard to log data.")
+    parser.add_argument("--wandb_mode",                 type=str, default='online', help="")
 
     # env parameters
     parser.add_argument("--env_name",                   type=str, default='MetaDrive', help="specify the name of environment")
     parser.add_argument("--scenario_name",              type=str, default='Intersection', help="Which scenario to run on")
     parser.add_argument('--num_agents',                 type=int, default=2, help="number of agents")
     parser.add_argument("--use_obs_instead_of_state",   action='store_true', default=False, help="Whether to use global state or concatenated obs")
+    
+    # MetaDrive
+    parser.add_argument("--delay_done", type=int, default=25, help="")
 
     # replay buffer parameters
     parser.add_argument("--episode_length",             type=int, default=1000, help="Max length for any episode") # horizon in env config
@@ -123,6 +127,6 @@ def get_config():
 
     # for DEBUG & grouping in wanb
     parser.add_argument("--debug_test", type=str, default=None, help="by default None. description of this debug test")
-
+    # TODO
 
     return parser

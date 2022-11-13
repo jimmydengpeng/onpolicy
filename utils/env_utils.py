@@ -25,7 +25,7 @@ def _check_homogeneous_agents(env_space):
     assert isinstance(env_space, Dict)
     spaces = [np.array(get_space_shape(env_space[key])) for key in env_space]  #type: ignore
     shape = spaces[0]
-    spaces = [(s - shape).all() for s in spaces]
+    spaces = [(s - shape).all() for s in spaces] #type: ignore
     if isinstance(shape, np.ndarray):
         return not any(spaces)
     else:
