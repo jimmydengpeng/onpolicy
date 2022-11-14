@@ -7,7 +7,7 @@ import setproctitle
 import numpy as np
 from pathlib import Path
 import torch
-from onpolicy.config import get_config
+from onpolicy.config import get_parser
 from onpolicy.envs.hanabi.Hanabi_Env import HanabiEnv
 from onpolicy.envs.env_wrappers import ChooseSubprocVecEnv, ChooseDummyVecEnv
 
@@ -70,7 +70,7 @@ def parse_args(args, parser):
 
 
 def main(args):
-    parser = get_config()
+    parser = get_parser()
     all_args = parse_args(args, parser)
 
     if all_args.algorithm_name == "rmappo":

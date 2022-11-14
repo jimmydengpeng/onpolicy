@@ -8,14 +8,13 @@ import numpy as np
 from pathlib import Path
 import torch
 import torch.backends.cudnn
-from colorlog import logger
-from onpolicy.config import get_config
+from onpolicy import logger
+from onpolicy.config import get_all_args_and_config
 # from onpolicy.envs.mpe.MPE_env import MPEEnv
 from onpolicy.envs.metadrive.MetaDrive_env import getMetaDriveEnv
 from onpolicy.envs.metadrive_vec_env import SubprocVecEnv, DummyVecEnv, ShareVecEnv
 from onpolicy.utils.utils import LogLevel, debug_msg, debug_print
 
-"""Train script for MetaDrive."""
 
 def make_train_env(all_args) -> ShareVecEnv:
     env_config = {}
@@ -47,18 +46,8 @@ def make_eval_env(all_args) -> ShareVecEnv:
     else:
         return SubprocVecEnv([get_env_fn(i) for i in range(all_args.n_eval_rollout_threads)])
 
-
-def parse_args(args, parser):
-    return  parser.parse_known_args(args)[0]
-
-
-def main(args):
-    parser = get_config()
-    all_args = parse_args(args, parser)
-    debug_print(">>> all_args.share_policy:", all_args.share_policy, level=LogLevel.INFO, inline=True)
-    debug_print(">>> all_args.algorithm_name:", all_args.algorithm_name, level=LogLevel.INFO, inline=True)
-    debug_print(">>> all_args.use_recurrent_policy:", all_args.use_recurrent_policy, level=LogLevel.INFO, inline=True)
-
+# TODO
+def check_args(all_args):
     if all_args.algorithm_name == "rmappo":
         assert (all_args.use_recurrent_policy or all_args.use_naive_recurrent_policy), ("check recurrent policy!")
     elif all_args.algorithm_name == "mappo":
@@ -66,32 +55,40 @@ def main(args):
     else:
         raise NotImplementedError
 
-    # assert (all_args.share_policy == True and all_args.scenario_name == 'simple_speaker_listener') == False, (
-        # "The simple_speaker_listener scenario can not use shared policy. Please check the config.py.")
+    assert all_args.desc is not None, "give a desc!"
+
+# TODO: eval & render mode
+def main(all_args, runner_config):
+    check_args(all_args) 
+
+    # logger.debug("all_args", vars(all_args))
+
+    logger.info(">>> all_args.share_policy:", all_args.share_policy, True)
+    logger.info(">>> all_args.algorithm_name:", all_args.algorithm_name, True)
+    logger.info(">>> all_args.use_recurrent_policy:", all_args.use_recurrent_policy, True)
 
     # cuda
     if all_args.cuda and torch.cuda.is_available():
-        debug_msg("choose to use gpu...", level=LogLevel.SUCCESS)
+        logger.warning("choose to use:", "gpu", True)
         device = torch.device("cuda:0")
-        torch.set_num_threads(all_args.n_training_threads)
         if all_args.cuda_deterministic: # default by True
             torch.backends.cudnn.benchmark = False
             torch.backends.cudnn.deterministic = True
     else:
-        debug_msg("choose to use cpu...", level=LogLevel.INFO)
+        logger.warning("choose to use:", "cpu", True)
         device = torch.device("cpu")
     torch.set_num_threads(all_args.n_training_threads)
 
     # run dir
     # TODO : folder by desc
     run_dir = Path(os.path.split(os.path.dirname(os.path.abspath(__file__)))[0] + "/results") \
-                / all_args.env_name / all_args.algorithm_name / all_args.experiment_name
-                # / all_args.env_name+all_args.scenario_name / all_args.algorithm_name / all_args.experiment_name
+                / str(all_args.env_name+all_args.scenario_name) / all_args.algorithm_name \
+                / all_args.experiment_name / all_args.desc
+                # / all_args.env_name / all_args.algorithm_name / all_args.experiment_name
     if not run_dir.exists():
         os.makedirs(str(run_dir))
 
     # wandb
-    # desc = '_' + str(all_args.debug_test) if all_args.debug_test else ""
     if all_args.use_wandb:
         run = wandb.init(config=all_args, #type: ignore
                          project=all_args.env_name+all_args.scenario_name,
@@ -100,7 +97,7 @@ def main(args):
                          name=str(all_args.algorithm_name) + "_" + \
                               str(all_args.experiment_name) + \
                               "_seed" + str(all_args.seed),
-                         group=all_args.debug_test, #TODO
+                         group=all_args.desc,
                          dir=str(run_dir),
                          job_type="training",
                          mode=all_args.wandb_mode,
@@ -131,7 +128,7 @@ def main(args):
     eval_envs = make_eval_env(all_args) if all_args.use_eval else None
     num_agents = all_args.num_agents
 
-    config = {
+    runner_config = {
         "all_args": all_args,
         "envs": envs,
         "eval_envs": eval_envs,
@@ -140,17 +137,13 @@ def main(args):
         "run_dir": run_dir
     }
 
-    debug_print(">>> Using share_policy:", all_args.share_policy, inline=True, level=LogLevel.INFO)
     # run experiments
     if all_args.share_policy:
         from onpolicy.runner.shared.metadrive_runner import MetaDriveRunner as Runner
     else:
         from onpolicy.runner.separated.metadrive_runner import MetaDriveRunner as Runner
 
-    # debug_print("action_space", envs.action_space)
-    # debug_print("share_observation_space", envs.share_observation_space)
-    # debug_print("observation_space", envs.observation_space)
-    runner = Runner(config)
+    runner = Runner(runner_config)
     runner.run()
     
     # post process
@@ -166,4 +159,23 @@ def main(args):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    # TODO: for-loop for multi-seed & log some info
+    cli_args = sys.argv[1:]
+    all_args, config = get_all_args_and_config(cli_args)
+    seed_max = all_args.seed_max
+
+    print('\n')
+    logger.success(f"{'='*10} Start training {'=='*10}")
+    logger.info(" <description>", all_args.desc, True)
+    logger.info(" <env_name>", all_args.env_name, True)
+    logger.info(" <scn_name>", all_args.scenario_name, True)
+    logger.info(" <alg_name>", all_args.algorithm_name, True)
+    logger.info(" <exp_name>", all_args.experiment_name, True)
+    print('\n')
+
+    for seed in range(seed_max):
+        logger.success(" Running begin! >>> seed:", f"{seed+1}/{seed_max}", True)
+        all_args.seed = seed+1
+        main(all_args, config)
+        logger.success(f" Running done! >>> seed:", f"{seed+1}/{seed_max}", True)
+        print('\n')

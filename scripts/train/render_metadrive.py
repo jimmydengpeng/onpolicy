@@ -3,7 +3,7 @@ import socket
 from pathlib import Path
 import wandb
 import torch
-from onpolicy.config import get_config
+from onpolicy.config import get_parser
 from onpolicy.envs.metadrive.MetaDrive_env import getMetaDriveEnv
 from onpolicy.envs.metadrive_vec_env import SubprocVecEnv, DummyVecEnv, ShareVecEnv
 from onpolicy.utils.utils import LogLevel, debug_msg, debug_print
@@ -25,7 +25,7 @@ def make_render_env(all_args) -> ShareVecEnv:
         return SubprocVecEnv([get_env_fn(i) for i in range(all_args.n_render_rollout_threads)])
 
 def main(args):
-    parser = get_config()
+    parser = get_parser()
     parser.add_argument("--actor_dir", type=str, default="latest-run")
     all_args = parser.parse_known_args(args)[0]
     debug_print(">>> all_args.share_policy:", all_args.share_policy, level=LogLevel.INFO, inline=True)

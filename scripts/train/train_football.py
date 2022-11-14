@@ -12,7 +12,7 @@ import torch
 import wandb
 
 # code repository sub-packages
-from onpolicy.config import get_config
+from onpolicy.config import get_parser
 from onpolicy.envs.football.Football_Env import FootballEnv
 from onpolicy.envs.env_wrappers import SubprocVecEnv, DummyVecEnv
 
@@ -95,7 +95,7 @@ def parse_args(args, parser):
 
 
 def main(args):
-    parser = get_config()
+    parser = get_parser()
     all_args = parse_args(args, parser)
 
     if all_args.algorithm_name == "rmappo" or all_args.algorithm_name == "rmappg":

@@ -1,22 +1,31 @@
 import argparse
+from typing import Dict
+import yaml
 
 
-def get_config():
+'''参数、设置的优先级：
+    cli -> yaml -> parser default
+'''
+
+# TODO 将通用的args与只和特定环境如metadrive环境相关的args分离
+def get_parser():
     """
     The configuration parser for common hyperparameters of all environment. 
-    Please read each `scripts/train/<env>_runner.py` file to find private hyperparameters
-    only used in <env>.
     """
 
-
     parser = argparse.ArgumentParser(description='onpolicy', formatter_class=argparse.RawDescriptionHelpFormatter)
+
+    parser.add_argument("--config", type=str, default="metadrive", help="yaml config file name")
 
     # prepare parameters
     parser.add_argument("--algorithm_name",             type=str, default='mappo', choices=["rmappo", "mappo"])
     parser.add_argument("--experiment_name",            type=str, default="check", help="an identifier to distinguish different experiment.")
     parser.add_argument("--seed",                       type=int, default=1, help="Random seed for numpy/torch")
-    parser.add_argument("--cuda",                       action='store_false', default=True, help="by default True, will use GPU to train; or else will use CPU;")
-    parser.add_argument("--cuda_deterministic",         action='store_false', default=True, help="by default True, make sure random seed effective. if set, bypass such function.")
+    parser.add_argument("--seed_max",                   type=int, default=1, help="Max seeds for seed")
+    parser.add_argument("--cuda",                       action='store_false', default=True, 
+                                                        help="by default True, will use GPU to train; or else will use CPU;")
+    parser.add_argument("--cuda_deterministic",         action='store_false', default=True, 
+                                                        help="by default True, make sure random seed effective. if set, bypass such function.")
     parser.add_argument("--n_training_threads",         type=int, default=1, help="Number of torch threads for training")
     parser.add_argument("--n_rollout_threads",          type=int, default=32, help="Number of parallel envs for training rollouts")
     parser.add_argument("--n_eval_rollout_threads",     type=int, default=1, help="Number of parallel envs for evaluating rollouts")
@@ -24,7 +33,7 @@ def get_config():
     parser.add_argument("--num_env_steps",              type=int, default=10e6, help='Number of environment steps to train (default: 10e6)')
     parser.add_argument("--user_name",                  type=str, default='marl',help="[for wandb usage], to specify user's name for simply collecting training data.")
     parser.add_argument("--use_wandb",                  action='store_false', default=True, help="[for wandb usage], by default True, will log date to wandb server. or else will use tensorboard to log data.")
-    parser.add_argument("--wandb_mode",                 type=str, default='online', help="")
+    parser.add_argument("--wandb_mode",                 type=str, default='online', help="whether or not to use online mode in wandb")
 
     # env parameters
     parser.add_argument("--env_name",                   type=str, default='MetaDrive', help="specify the name of environment")
@@ -32,7 +41,7 @@ def get_config():
     parser.add_argument('--num_agents',                 type=int, default=2, help="number of agents")
     parser.add_argument("--use_obs_instead_of_state",   action='store_true', default=False, help="Whether to use global state or concatenated obs")
     
-    # MetaDrive
+    # MetaDrive #TODO
     parser.add_argument("--delay_done", type=int, default=25, help="")
 
     # replay buffer parameters
@@ -126,7 +135,44 @@ def get_config():
     parser.add_argument("--model_dir", type=str, default=None, help="by default None. set the path to pretrained model.")
 
     # for DEBUG & grouping in wanb
-    parser.add_argument("--debug_test", type=str, default=None, help="by default None. description of this debug test")
-    # TODO
+    parser.add_argument("--desc", type=str, default=None, help="by default None. description of this debug test")
 
     return parser
+
+
+ALL_YAML_CONFIGS = {
+    "metadrive": "metadrive.yaml",
+    # "bridge": "configs/bridge.yaml"
+}
+
+
+def make_config(cfg_name) -> Dict:
+    with open(ALL_YAML_CONFIGS[cfg_name]) as f:
+        config = yaml.load(f, Loader=yaml.FullLoader)
+    return config
+
+def merge_commone_cfg(cli_args, all_args, config):
+    ''' 遍历 config(yaml) 里 commone 的每个选项, 如果 cli_args 里没有设置该项,
+        就将 config 里的该值添加到 all_args.
+        注意: Parser 中未添加 yaml 中的一些设置, 如 policy, environment, 这样就可以从 config 中单独获取这些设置.
+    :param cli_args: 终端传入的所有参数
+    :param all_args: parser 解析的所有已知参数
+    :param config:   从 yaml 文件读取的所有设置
+    '''
+    KEY_COMMON = 'common'
+    for k, v in config.get(KEY_COMMON, {}).items():
+        if f"--{k}" not in cli_args:
+            setattr(all_args, k, v)
+        else:
+            from onpolicy import logger
+            logger.warning(f"Overwritten arguments:", f"{k} = {getattr(all_args, k)}.", True)
+
+
+""" API """
+
+def get_all_args_and_config(cli_args):
+    parser = get_parser()
+    all_args = parser.parse_known_args(cli_args)[0] # returning a two item tuple containing known & unknown agrs
+    config = make_config(all_args.config)
+    merge_commone_cfg(cli_args, all_args, config)
+    return all_args, config

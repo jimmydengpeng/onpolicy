@@ -7,7 +7,7 @@ import setproctitle
 import numpy as np
 from pathlib import Path
 import torch
-from onpolicy.config import get_config
+from onpolicy.config import get_parser
 from onpolicy.envs.mpe.MPE_env import MPEEnv
 from onpolicy.envs.env_wrappers import SubprocVecEnv, DummyVecEnv
 from onpolicy.utils.utils import LogLevel, debug_msg, debug_print
@@ -63,7 +63,7 @@ def parse_args(args, parser):
 
 
 def main(args):
-    parser = get_config()
+    parser = get_parser()
     all_args = parse_args(args, parser)
     debug_print(">>> all_args.share_policy:", all_args.share_policy, level=LogLevel.INFO, inline=True)
     debug_print(">>> all_args.algorithm_name:", all_args.algorithm_name, level=LogLevel.INFO, inline=True)
