@@ -144,7 +144,7 @@ def main(all_args, runner_config):
         from onpolicy.runner.separated.metadrive_runner import MetaDriveRunner as Runner
 
     runner = Runner(runner_config)
-    runner.run()
+    runner.run() # start to train
     
     # post process
     envs.close()
@@ -158,12 +158,7 @@ def main(all_args, runner_config):
         runner.writter.close()
 
 
-if __name__ == "__main__":
-    # TODO: for-loop for multi-seed & log some info
-    cli_args = sys.argv[1:]
-    all_args, config = get_all_args_and_config(cli_args)
-    seed_max = all_args.seed_max
-
+def log_exp_info(all_args):
     print('\n')
     logger.success(f"{'='*10} Start training {'=='*10}")
     logger.info(" <description>", all_args.desc, True)
@@ -172,6 +167,14 @@ if __name__ == "__main__":
     logger.info(" <alg_name>", all_args.algorithm_name, True)
     logger.info(" <exp_name>", all_args.experiment_name, True)
     print('\n')
+
+if __name__ == "__main__":
+    cli_args = sys.argv[1:]
+    all_args, config = get_all_args_and_config(cli_args)
+    seed_max = all_args.seed_max
+    logger.debug(all_args)
+    logger.debug(config)
+    log_exp_info(all_args)
 
     for seed in range(seed_max):
         logger.success(" Running begin! >>> seed:", f"{seed+1}/{seed_max}", True)
