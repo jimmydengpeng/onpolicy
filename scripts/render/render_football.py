@@ -11,7 +11,7 @@ import setproctitle
 import torch
 
 # code repository sub-packages
-from onpolicy.config import get_parser
+from configs.config import get_parser
 from onpolicy.envs.football.Football_Env import FootballEnv
 from onpolicy.envs.env_wrappers import SubprocVecEnv, DummyVecEnv
 

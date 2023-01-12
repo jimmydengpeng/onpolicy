@@ -1,7 +1,7 @@
 import argparse
 from typing import Dict
 import yaml
-
+from colorlog import logger
 
 '''参数、设置的优先级：
     cli -> yaml -> parser default
@@ -140,39 +140,55 @@ def get_parser():
     return parser
 
 
-ALL_YAML_CONFIGS = {
-    "metadrive": "metadrive.yaml",
-    # "bridge": "configs/bridge.yaml"
-}
-
-
-def make_config(cfg_name) -> Dict:
-    with open(ALL_YAML_CONFIGS[cfg_name]) as f:
-        config = yaml.load(f, Loader=yaml.FullLoader)
-    return config
-
-def merge_commone_cfg(cli_args, all_args, config):
-    ''' 遍历 config(yaml) 里 commone 的每个选项, 如果 cli_args 里没有设置该项,
-        就将 config 里的该值添加到 all_args.
-        注意: Parser 中未添加 yaml 中的一些设置, 如 policy, environment, 这样就可以从 config 中单独获取这些设置.
-    :param cli_args: 终端传入的所有参数
-    :param all_args: parser 解析的所有已知参数
-    :param config:   从 yaml 文件读取的所有设置
-    '''
-    KEY_COMMON = 'common'
-    for k, v in config.get(KEY_COMMON, {}).items():
-        if f"--{k}" not in cli_args:
-            setattr(all_args, k, v)
-        else:
-            from onpolicy import logger
-            logger.warning(f"Overwritten arguments:", f"{k} = {getattr(all_args, k)}.", True)
-
-
 """ API """
 
-def get_all_args_and_config(cli_args):
-    parser = get_parser()
-    all_args = parser.parse_known_args(cli_args)[0] # returning a two item tuple containing known & unknown agrs
-    config = make_config(all_args.config)
-    merge_commone_cfg(cli_args, all_args, config)
-    return all_args, config
+class Config:
+
+    YAML_CONFIGS = {
+        "football": "configs/football.yaml",
+        "bridge": "configs/bridge.yaml",
+        "metadrive": "metadrive.yaml"
+    }
+
+    KEY_COMMON = "common"
+
+    def __init__(self, cli_args) -> None:
+        parser = get_parser()
+        all_args = parser.parse_known_args(cli_args)[0] # 2-item tuple: (known agrs, unknown agrs)
+        config = self._make_config(all_args.config)
+        self._merge_common_cfg(cli_args, all_args, config)
+        self.all_args = all_args
+        self.config = config
+
+    def _make_config(self, cfg_name) -> Dict:
+        import os.path as osp
+        yaml_pth = osp.join(osp.dirname(osp.abspath(__file__)), self.YAML_CONFIGS[cfg_name])
+        logger.debug("pth", yaml_pth)
+
+        with open(yaml_pth) as f:
+            return yaml.load(f, Loader=yaml.FullLoader)
+
+    def _merge_common_cfg(self, cli_args, all_args, config):
+        ''' 
+        遍历 config(yaml) 里 common(base) 的每个选项, 如果 cli_args 里没有设置该项, 就将 config 里的该值添加到 all_args.
+            注意: Parser 中未添加 yaml 中的一些设置, 如 policy, environment, 这样就可以从 config 中单独获取这些设置.
+            参数、设置的优先级：
+                cli > yaml > parser default
+        :param cli_args: 终端传入的所有参数
+        :param all_args: parser 解析的所有已知参数
+        :param config:   从 yaml 文件读取的所有设置
+        '''
+        for k, v in config.get(self.KEY_COMMON, {}).items():
+            if f"--{k}" not in cli_args:
+                setattr(all_args, k, v)
+            else:
+                logger.warning(f"Overwritten arguments:", f"{k} = {getattr(all_args, k)}.", True)
+
+
+if __name__ == "__main__":
+    import sys
+    config = Config(sys.argv[1:])
+    all_args = config.all_args
+    cfg = config.config
+    logger.debug("cfg:", cfg)
+    logger.debug("all_args:", all_args)

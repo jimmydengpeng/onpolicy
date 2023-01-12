@@ -5,7 +5,7 @@ TEST_MODE=true
 # env="MetaDriveIntersection"
 # env="MetaDriveRoundaboutEval"
 env="MetaDrive"
-
+config="metadrive"
 # scenario="Bottleneck"
 # scenario="Roundabout"
 scenario="Intersection"
@@ -31,6 +31,7 @@ if ${TEST_MODE}; then wandb_mode='disabled'; else wandb_mode='online'; fi
 
 CUDA_VISIBLE_DEVICES=0 python train/train_metadrive.py \
 --env_name ${env} \
+--config ${config} \
 --experiment_name ${exp} \
 --scenario_name ${scenario} \
 --num_agents ${num_agents} \

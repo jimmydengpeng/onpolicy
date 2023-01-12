@@ -7,7 +7,7 @@ import setproctitle
 import numpy as np
 from pathlib import Path
 import torch
-from onpolicy.config import get_parser
+from configs.config import get_parser
 from onpolicy.envs.hanabi.Hanabi_Env import HanabiEnv
 from onpolicy.envs.env_wrappers import ChooseSubprocVecEnv, ChooseDummyVecEnv
 

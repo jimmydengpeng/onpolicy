@@ -9,7 +9,7 @@ from pathlib import Path
 
 import torch
 
-from onpolicy.config import get_parser
+from configs.config import get_parser
 
 from onpolicy.envs.mpe.MPE_env import MPEEnv
 from onpolicy.envs.env_wrappers import SubprocVecEnv, DummyVecEnv

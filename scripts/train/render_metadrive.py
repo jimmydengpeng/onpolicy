@@ -3,7 +3,7 @@ import socket
 from pathlib import Path
 import wandb
 import torch
-from onpolicy.config import get_parser
+from configs.config import get_parser
 from onpolicy.envs.metadrive.MetaDrive_env import getMetaDriveEnv
 from onpolicy.envs.metadrive_vec_env import SubprocVecEnv, DummyVecEnv, ShareVecEnv
 from onpolicy.utils.utils import LogLevel, debug_msg, debug_print

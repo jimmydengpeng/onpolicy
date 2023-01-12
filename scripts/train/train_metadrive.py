@@ -8,8 +8,8 @@ import numpy as np
 from pathlib import Path
 import torch
 import torch.backends.cudnn
-from onpolicy import logger
-from onpolicy.config import get_all_args_and_config
+from colorlog import logger
+from onpolicy.configs.config import Config
 # from onpolicy.envs.mpe.MPE_env import MPEEnv
 from onpolicy.envs.metadrive.MetaDrive_env import getMetaDriveEnv
 from onpolicy.envs.metadrive_vec_env import SubprocVecEnv, DummyVecEnv, ShareVecEnv
@@ -60,8 +60,6 @@ def check_args(all_args):
 # TODO: eval & render mode
 def main(all_args, runner_config):
     check_args(all_args) 
-
-    # logger.debug("all_args", vars(all_args))
 
     logger.info(">>> all_args.share_policy:", all_args.share_policy, True)
     logger.info(">>> all_args.algorithm_name:", all_args.algorithm_name, True)
@@ -160,20 +158,20 @@ def main(all_args, runner_config):
 
 def log_exp_info(all_args):
     print('\n')
-    logger.success(f"{'='*10} Start training {'=='*10}")
-    logger.info(" <description>", all_args.desc, True)
-    logger.info(" <env_name>", all_args.env_name, True)
-    logger.info(" <scn_name>", all_args.scenario_name, True)
-    logger.info(" <alg_name>", all_args.algorithm_name, True)
-    logger.info(" <exp_name>", all_args.experiment_name, True)
+    logger.log(f"{'='*20} Start training {'='*20}", color='green')
+    logger.info(" description:", all_args.desc, True)
+    logger.info(" env_name:", all_args.env_name, True)
+    logger.info(" scn_name:", all_args.scenario_name, True)
+    logger.info(" alg_name:", all_args.algorithm_name, True)
+    logger.info(" exp_name:", all_args.experiment_name, True)
     print('\n')
 
 if __name__ == "__main__":
-    cli_args = sys.argv[1:]
-    all_args, config = get_all_args_and_config(cli_args)
+    config = Config(sys.argv[1:])
+    all_args, cfg = config.all_args, config.config
     seed_max = all_args.seed_max
-    logger.debug(all_args)
-    logger.debug(config)
+    # logger.debug(all_args)
+    # logger.debug(cfg)
     log_exp_info(all_args)
 
     for seed in range(seed_max):
